@@ -3,10 +3,10 @@ version: '3.8'
 services:
   app:
     # Replace the username below with your actual Docker Hub username
-    image: your-docker-username/macro-tracker:latest
+    image: your-docker-username/cabridget:latest
     restart: always
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/macro_tracker?schema=public
     depends_on:
@@ -14,7 +14,7 @@ services:
         condition: service_healthy
 
   db:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     restart: always
     environment:
       POSTGRES_USER: postgres
