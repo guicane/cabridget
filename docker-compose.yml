@@ -3,7 +3,7 @@ version: '3.8'
 services:
   app:
     # Use a custom Dockerfile or standard node image for development
-    image: node:20-alpine
+    image: node:24-alpine
     working_dir: /app
     volumes:
       - .:/app
