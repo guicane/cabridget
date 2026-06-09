@@ -42,5 +42,4 @@ networks:
   internal-net:
     internal: true
 
-volumes:
-  postgres_data:
+
