@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getNetWorthData } from "@/actions/net-worth"
 import { AccountManager } from "@/components/net-worth/AccountManager"
 import { SnapshotGrid } from "@/components/net-worth/SnapshotGrid"

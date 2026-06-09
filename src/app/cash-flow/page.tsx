@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getMonths } from "@/actions/cash-flow"
 import { MonthList } from "@/components/cash-flow/MonthList"
 import { MonthCreator } from "@/components/cash-flow/MonthCreator"
