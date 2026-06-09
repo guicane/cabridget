@@ -1,22 +1,16 @@
 "use client"
 
-import { useState } from "react"
 import type { Month, LedgerEntry } from "@prisma/client"
-import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react"
-import { deleteLedgerEntry } from "@/actions/cash-flow"
-import { LedgerEntryForm } from "./LedgerEntryForm"
+import { ChevronRight } from "lucide-react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 
 type MonthWithEntries = Month & { ledgerEntries: LedgerEntry[] }
 
 export function MonthList({ initialMonths }: { initialMonths: MonthWithEntries[] }) {
-  const [expandedMonth, setExpandedMonth] = useState<string | null>(initialMonths[0]?.id || null)
-
   return (
     <div className="space-y-4">
       {initialMonths.map((month) => {
-        const isExpanded = expandedMonth === month.id
-        
         // Calculate totals
         const income = month.ledgerEntries.filter(e => e.type === "Income").reduce((sum, e) => sum + Number(e.amount), 0)
         const bills = month.ledgerEntries.filter(e => e.type === "Bill").reduce((sum, e) => sum + Number(e.amount), 0)
@@ -24,18 +18,18 @@ export function MonthList({ initialMonths }: { initialMonths: MonthWithEntries[]
         const netCashFlow = income - bills - ccPayments
 
         return (
-          <div key={month.id} className="glass-card rounded-2xl border border-white/5 overflow-hidden transition-all duration-300">
-            {/* Header / Summary Row */}
-            <button
-              onClick={() => setExpandedMonth(isExpanded ? null : month.id)}
-              className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors text-left"
-            >
+          <Link 
+            key={month.id} 
+            href={`/cash-flow/${month.id}`}
+            className="block glass-card rounded-2xl border border-white/5 overflow-hidden transition-all duration-300 hover:bg-white/5 hover:border-white/10 group"
+          >
+            <div className="w-full flex items-center justify-between p-6">
               <div className="flex items-center gap-4">
-                <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
-                  {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                <div className="p-2 bg-slate-800 rounded-lg text-slate-400 group-hover:text-white group-hover:bg-indigo-500/20 transition-colors">
+                  <ChevronRight className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-white">{month.identifier}</h2>
+                  <h2 className="text-xl font-semibold text-white group-hover:text-indigo-300 transition-colors">{month.identifier}</h2>
                   <p className={cn(
                     "text-sm font-medium mt-1",
                     netCashFlow >= 0 ? "text-emerald-400" : "text-red-400"
@@ -59,49 +53,8 @@ export function MonthList({ initialMonths }: { initialMonths: MonthWithEntries[]
                   <p className="text-amber-400 font-medium">${ccPayments.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                 </div>
               </div>
-            </button>
-
-            {/* Expanded Details */}
-            {isExpanded && (
-              <div className="border-t border-white/5 p-6 bg-black/20">
-                <LedgerEntryForm monthId={month.id} />
-
-                <div className="mt-8 space-y-2">
-                  {month.ledgerEntries.length === 0 ? (
-                    <p className="text-slate-500 text-sm italic text-center py-4">No entries recorded for this month.</p>
-                  ) : (
-                    month.ledgerEntries.map((entry) => (
-                      <div key={entry.id} className="flex items-center justify-between p-4 rounded-lg bg-slate-900/50 border border-white/5 group hover:border-white/10 transition-colors">
-                        <div className="flex items-center gap-4">
-                          <span className={cn(
-                            "px-2.5 py-1 rounded text-xs font-semibold uppercase tracking-wider",
-                            entry.type === "Income" && "bg-emerald-500/10 text-emerald-400",
-                            entry.type === "Bill" && "bg-red-500/10 text-red-400",
-                            entry.type === "CreditCardPayment" && "bg-amber-500/10 text-amber-400"
-                          )}>
-                            {entry.type.replace(/([A-Z])/g, ' $1').trim()}
-                          </span>
-                          <span className="text-slate-300 font-medium">{entry.description}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-white font-medium">
-                            ${Number(entry.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </span>
-                          <button
-                            onClick={() => deleteLedgerEntry(entry.id)}
-                            className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                            title="Delete entry"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          </Link>
         )
       })}
     </div>

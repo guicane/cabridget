@@ -7,11 +7,22 @@ import { EntryType } from "@prisma/client"
 export async function getMonths() {
   return prisma.month.findMany({
     include: {
-      ledgerEntries: true,
+      ledgerEntries: {
+        orderBy: { createdAt: "desc" }
+      }
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: "desc" }
+  })
+}
+
+export async function getMonthById(id: string) {
+  return prisma.month.findUnique({
+    where: { id },
+    include: {
+      ledgerEntries: {
+        orderBy: { createdAt: "desc" }
+      }
+    }
   })
 }
 
@@ -22,7 +33,7 @@ export async function getOrCreateMonth(identifier: string) {
     create: { identifier },
   })
   
-  revalidatePath("/cash-flow")
+  revalidatePath("/cash-flow", "layout")
   return month
 }
 
@@ -50,7 +61,7 @@ export async function addLedgerEntry(formData: FormData) {
     },
   })
 
-  revalidatePath("/cash-flow")
+  revalidatePath("/cash-flow", "layout")
 }
 
 export async function deleteLedgerEntry(id: string) {
@@ -58,5 +69,5 @@ export async function deleteLedgerEntry(id: string) {
     where: { id },
   })
   
-  revalidatePath("/cash-flow")
+  revalidatePath("/cash-flow", "layout")
 }
