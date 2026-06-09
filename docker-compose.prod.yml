@@ -1,32 +1,46 @@
 version: '3.8'
+name: cabridget
 
 services:
   app:
-    # Replace the username below with your actual Docker Hub username
-    image: your-docker-username/cabridget:latest
+    image: guicane/cabridget:0.0.4
+    container_name: cabridget-app
     restart: always
     expose:
       - "3000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/macro_tracker?schema=public
+      # Connects to the db container and looks for the cabridget_db database
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/cabridget_db?schema=public
+    networks:
+      - proxy-net
+      - internal-net
     depends_on:
       db:
         condition: service_healthy
 
   db:
     image: postgres:18-alpine
+    container_name: cabridget-db
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: macro_tracker
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: cabridget_db
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /mnt/ext-ssd/cabridget/postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d macro_tracker"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cabridget_db"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - internal-net
+
+networks:
+  proxy-net:
+    external: true
+  internal-net:
+    internal: true
 
 volumes:
   postgres_data:
