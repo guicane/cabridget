@@ -18,14 +18,14 @@ export default async function NetWorthPage() {
       </div>
 
       {accounts.length === 0 ? (
-        <div className="glass-card rounded-2xl p-12 text-center border border-white/5 border-dashed">
-          <p className="text-slate-400 text-lg">No investment accounts tracked yet.</p>
-          <p className="text-slate-500 text-sm mt-2">Add your first account to start tracking snapshots.</p>
+        <div className="bg-card rounded-2xl p-12 text-center border border-border border-dashed">
+          <p className="text-muted-foreground text-lg">No investment accounts tracked yet.</p>
+          <p className="text-muted-foreground opacity-80 text-sm mt-2">Add your first account to start tracking snapshots.</p>
         </div>
       ) : months.length === 0 ? (
-        <div className="glass-card rounded-2xl p-12 text-center border border-white/5 border-dashed">
-          <p className="text-slate-400 text-lg">No months exist yet.</p>
-          <p className="text-slate-500 text-sm mt-2">Please go to the Cash Flow page and create a month before taking snapshots.</p>
+        <div className="bg-card rounded-2xl p-12 text-center border border-border border-dashed">
+          <p className="text-muted-foreground text-lg">No months exist yet.</p>
+          <p className="text-muted-foreground opacity-80 text-sm mt-2">Please go to the Cash Flow page and create a month before taking snapshots.</p>
         </div>
       ) : (
         <SnapshotGrid accounts={accounts} months={months} />

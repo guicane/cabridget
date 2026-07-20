@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
@@ -16,6 +17,7 @@ model Month {
   identifier          String               @unique // e.g., "June 2026"
   ledgerEntries       LedgerEntry[]
   investmentSnapshots InvestmentSnapshot[]
+  monthlyBills        MonthlyBill[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 }
@@ -33,15 +35,24 @@ model LedgerEntry {
   type        EntryType
   description String
   amount      Decimal   @db.Decimal(12, 2)
+  orderIndex  Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
 
 // Module B: Net Worth
 
+enum AccountCategory {
+  Pensions
+  StockISA
+  Shares
+  Savings
+}
+
 model InvestmentAccount {
   id        String               @id @default(uuid())
   name      String               @unique
+  category  AccountCategory      @default(Savings)
   snapshots InvestmentSnapshot[]
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
@@ -58,4 +69,36 @@ model InvestmentSnapshot {
   updatedAt DateTime          @updatedAt
 
   @@unique([accountId, monthId])
+}
+
+// Module C: Settings
+
+model Settings {
+  id       String @id @default("global")
+  currency String @default("$")
+}
+
+// Module D: Monthly Bills (Recurring)
+
+model RecurringBill {
+  id          String   @id @default(uuid())
+  name        String
+  company     String?
+  amount      Decimal  @db.Decimal(12, 2)
+  dayOfMonth  Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MonthlyBill {
+  id          String   @id @default(uuid())
+  monthId     String
+  month       Month    @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  name        String
+  company     String?
+  amount      Decimal  @db.Decimal(12, 2)
+  dayOfMonth  Int?
+  isPaid      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

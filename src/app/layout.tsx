@@ -18,32 +18,43 @@ export const metadata: Metadata = {
   description: "High-level financial trajectory tracker",
 };
 
-export default function RootLayout({
+import { getSettings } from "@/actions/settings";
+import { SettingsProvider } from "@/components/providers/SettingsProvider";
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+};
+
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const settings = await getSettings();
+
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} h-[100dvh] antialiased`}
     >
-      <body className="h-full flex overflow-hidden selection:bg-primary/30">
-        
-        {/* Background gradient effects */}
-        <div className="fixed inset-0 z-[-1] bg-background">
-          <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[120px]" />
-          <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-500/10 blur-[120px]" />
-        </div>
-
-        <Sidebar />
-        
-        <main className="flex-1 overflow-y-auto relative">
-          <div className="container mx-auto max-w-5xl p-8">
-            {children}
-          </div>
-        </main>
-
+      <body className="h-[100dvh] flex flex-col md:flex-row overflow-hidden selection:bg-primary/30 bg-background text-foreground">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <SettingsProvider settings={settings}>
+            <Sidebar />
+            
+            <main className="flex-1 overflow-y-auto relative pb-24 md:pb-0">
+              <div className="container mx-auto max-w-5xl p-4 md:p-8">
+                {children}
+              </div>
+            </main>
+          </SettingsProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

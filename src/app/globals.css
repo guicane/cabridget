@@ -2,13 +2,17 @@
 @plugin "tailwindcss-animate";
 
 :root {
-  --background: #020617;
-  --foreground: #f8fafc;
+  --background: #f8fafc;
+  --foreground: #0f172a;
   
-  --card: #0f172a;
-  --card-foreground: #f8fafc;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
   
-  --border: #1e293b;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  
+  --border: #e2e8f0;
+  --input: #ffffff;
   
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
@@ -18,12 +22,36 @@
   --accent-credit: #f59e0b;
 }
 
+.dark {
+  --background: #000000;
+  --foreground: #ffffff;
+  
+  --card: #09090b;
+  --card-foreground: #fafafa;
+  
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  
+  --border: #27272a;
+  --input: #0f172a;
+  
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  
+  --accent-income: #34d399;
+  --accent-bill: #f87171;
+  --accent-credit: #fbbf24;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  --color-input: var(--input);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   
@@ -43,20 +71,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Glassmorphism utilities */
-@utility glass {
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+@utility pb-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
 }
 
-@utility glass-card {
-  background: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+@utility pt-safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 ::-webkit-scrollbar {

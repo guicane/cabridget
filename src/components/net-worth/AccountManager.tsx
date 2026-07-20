@@ -18,12 +18,22 @@ export function AccountManager() {
 
   return (
     <form action={handleCreate} className="flex items-center gap-2">
+      <select
+        name="category"
+        required
+        className="px-4 py-2 bg-input border border-border rounded-lg text-base text-foreground focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+      >
+        <option value="Pensions">Pensions</option>
+        <option value="StockISA">Stock ISA</option>
+        <option value="Shares">Shares</option>
+        <option value="Savings">Savings</option>
+      </select>
       <input
         type="text"
         name="name"
         placeholder="e.g. Fidelity 401k"
         required
-        className="px-4 py-2 bg-slate-900/50 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+        className="px-4 py-2 bg-input border border-border rounded-lg text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
       />
       <button
         type="submit"

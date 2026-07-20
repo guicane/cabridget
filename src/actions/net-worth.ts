@@ -31,12 +31,15 @@ export async function getNetWorthData() {
   return { accounts, months }
 }
 
+import { AccountCategory } from "@prisma/client"
+
 export async function addInvestmentAccount(formData: FormData) {
   const name = formData.get("name") as string
+  const category = formData.get("category") as AccountCategory
   if (!name) throw new Error("Name is required")
 
   await prisma.investmentAccount.create({
-    data: { name }
+    data: { name, category: category || "Savings" }
   })
 
   revalidatePath("/net-worth")
