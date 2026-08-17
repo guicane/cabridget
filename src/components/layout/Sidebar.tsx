@@ -71,7 +71,7 @@ export function Sidebar() {
         {/* Desktop Footer Version */}
         <div className="hidden md:flex px-6 mt-auto w-full items-center justify-between">
           <div className="text-xs text-muted-foreground">
-            v0.0.5
+            v{process.env.NEXT_PUBLIC_APP_VERSION || "dev"}
           </div>
           <ThemeToggle />
         </div>

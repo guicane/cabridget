@@ -36,6 +36,8 @@ jobs:
           # builds for native modules (Prisma engines etc). Add arm64 back
           # only if another deployment target actually needs it.
           platforms: linux/amd64
+          build-args: |
+            APP_VERSION=${{ github.ref_name }}
           tags: |
             ${{ secrets.DOCKER_HUB_USERNAME }}/cabridget:latest
             ${{ secrets.DOCKER_HUB_USERNAME }}/cabridget:${{ github.ref_name }}

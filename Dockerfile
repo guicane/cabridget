@@ -21,6 +21,11 @@ COPY . .
 # Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Version shown in the app footer; passed by CI from the git tag being
+# built so it can never drift from what's actually deployed.
+ARG APP_VERSION=dev
+ENV NEXT_PUBLIC_APP_VERSION=$APP_VERSION
+
 # Generate Prisma Client
 RUN npx prisma generate
 
