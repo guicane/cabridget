@@ -1,0 +1,74 @@
+name: cabridget-staging
+
+# Throwaway environment for testing code + Docker build + migrations before
+# tagging a real release. Fully isolated from the production "cabridget"
+# stack: separate network, separate volume, separate container names.
+#
+# Usage (from a machine with the `cabridget-host` docker context configured):
+#   echo "STAGING_DB_PASSWORD=$(openssl rand -hex 16)" > .env.staging   # once, gitignored
+#   docker --context cabridget-host compose --env-file .env.staging -f docker-compose.staging.yml up --build -d
+#   docker --context cabridget-host compose --env-file .env.staging -f docker-compose.staging.yml down -v   # wipe and start clean
+#
+# App is reachable at http://<docker-host>:3100 once healthy.
+
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: cabridget-staging-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD}
+      POSTGRES_DB: cabridget_staging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cabridget_staging"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - staging-db-data:/var/lib/postgresql
+    networks:
+      - staging-net
+
+  migrate:
+    build:
+      context: .
+      target: builder
+    container_name: cabridget-staging-migrate
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://postgres:${STAGING_DB_PASSWORD}@db:5432/cabridget_staging?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - staging-net
+
+  app:
+    build:
+      context: .
+      target: runner
+    container_name: cabridget-staging-app
+    ports:
+      - "3100:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:${STAGING_DB_PASSWORD}@db:5432/cabridget_staging?schema=public
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - staging-net
+
+networks:
+  staging-net:
+
+volumes:
+  staging-db-data:

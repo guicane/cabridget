@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   description: "High-level financial trajectory tracker",
 };
 
+// Root layout reads Settings from the database on every request; forcing
+// dynamic rendering stops Next.js from trying to prerender routes that use
+// this layout (e.g. /_not-found) at build time, when no database is reachable.
+export const dynamic = "force-dynamic";
+
 import { getSettings } from "@/actions/settings";
 import { SettingsProvider } from "@/components/providers/SettingsProvider";
 
