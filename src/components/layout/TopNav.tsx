@@ -35,7 +35,12 @@ export function TopNav() {
             </div>
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            v{process.env.NEXT_PUBLIC_APP_VERSION || "dev"}
+          </span>
+          <ThemeToggle />
+        </div>
       </header>
 
       <nav className="flex gap-2.5 flex-wrap">
