@@ -5,6 +5,7 @@ import { upsertCashFlowRow, deleteCashFlowRow } from "@/actions/cash-flow"
 import { Trash2 } from "lucide-react"
 import type { Month } from "@prisma/client"
 import { cn } from "@/lib/utils"
+import { sumAmounts } from "@/lib/money"
 import { useSettings } from "@/components/providers/SettingsProvider"
 
 type EntryType = "Income" | "Bill" | "CreditCard"
@@ -128,16 +129,16 @@ export function CashFlowGrid({
   }
 
   const getTypeSubtotal = (type: EntryType, monthId: string) => {
-    return entries
-      .filter(e => e.type === type && e.monthId === monthId)
-      .reduce((sum, e) => sum + e.amount, 0)
+    return sumAmounts(
+      entries.filter(e => e.type === type && e.monthId === monthId).map(e => e.amount)
+    )
   }
 
   const getLeftOver = (monthId: string) => {
     const income = getTypeSubtotal("Income", monthId)
     const bills = getTypeSubtotal("Bill", monthId)
     const cc = getTypeSubtotal("CreditCard", monthId)
-    return income - bills - cc
+    return sumAmounts([income, -bills, -cc])
   }
 
   return (

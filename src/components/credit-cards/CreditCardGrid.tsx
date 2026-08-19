@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { upsertCreditCardStatement } from "@/actions/credit-cards"
 import { useSettings } from "@/components/providers/SettingsProvider"
+import { sumAmounts } from "@/lib/money"
 import { Trash2 } from "lucide-react"
 
 type Statement = {
@@ -36,10 +37,12 @@ export function CreditCardGrid({ cards, months }: { cards: Card[], months: Month
   }
 
   const getMonthTotal = (monthId: string) => {
-    return cards.reduce((total, card) => {
-      const stmt = card.statements.find(s => s.monthId === monthId)
-      return total + (stmt ? Number(stmt.balance) : 0)
-    }, 0)
+    return sumAmounts(
+      cards.map(card => {
+        const stmt = card.statements.find(s => s.monthId === monthId)
+        return stmt ? Number(stmt.balance) : 0
+      })
+    )
   }
 
   return (

@@ -5,6 +5,7 @@ import { upsertSnapshot, deleteInvestmentAccount } from "@/actions/net-worth"
 import { Trash2 } from "lucide-react"
 
 import { useSettings } from "@/components/providers/SettingsProvider"
+import { sumAmounts } from "@/lib/money"
 
 // Types matching the Prisma schema relationships
 type Snapshot = {
@@ -43,15 +44,17 @@ export function SnapshotGrid({ accounts, months }: { accounts: Account[], months
 
   // Calculate totals per month across all accounts minus credit card debt
   const getMonthTotal = (monthId: string) => {
-    const assets = accounts.reduce((total, account) => {
-      const snap = account.snapshots.find(s => s.monthId === monthId)
-      return total + (snap ? Number(snap.balance) : 0)
-    }, 0)
+    const assets = sumAmounts(
+      accounts.map(account => {
+        const snap = account.snapshots.find(s => s.monthId === monthId)
+        return snap ? Number(snap.balance) : 0
+      })
+    )
 
     const month = months.find(m => m.id === monthId)
-    const ccDebt = month?.creditCardStatements.reduce((sum, cc) => sum + Number(cc.balance), 0) || 0
+    const ccDebt = sumAmounts((month?.creditCardStatements || []).map(cc => Number(cc.balance)))
 
-    return assets - ccDebt
+    return sumAmounts([assets, -ccDebt])
   }
 
   // Group accounts by category
@@ -70,10 +73,12 @@ export function SnapshotGrid({ accounts, months }: { accounts: Account[], months
   // Calculate subtotal for a specific category
   const getCategoryTotal = (category: string, monthId: string) => {
     const categoryAccounts = accountsByCategory[category] || []
-    return categoryAccounts.reduce((total, account) => {
-      const snap = account.snapshots.find(s => s.monthId === monthId)
-      return total + (snap ? Number(snap.balance) : 0)
-    }, 0)
+    return sumAmounts(
+      categoryAccounts.map(account => {
+        const snap = account.snapshots.find(s => s.monthId === monthId)
+        return snap ? Number(snap.balance) : 0
+      })
+    )
   }
 
   return (

@@ -6,6 +6,7 @@ import { CheckCircle2, Circle, Copy, Plus, Trash2 } from "lucide-react"
 import type { Month } from "@prisma/client"
 import { useSettings } from "@/components/providers/SettingsProvider"
 import { cn } from "@/lib/utils"
+import { sumAmounts } from "@/lib/money"
 
 type SerializedMonthlyBill = { id: string, monthId: string, name: string, company: string | null, amount: number, dayOfMonth: number | null, isPaid: boolean }
 type SerializedIncome = { id: string, monthId: string, source: string, amount: number, isPaid: boolean }
@@ -184,7 +185,7 @@ export function ActualsTab({
                   })}
                   <td className="p-4 border-l border-border/50 text-right font-bold text-foreground sticky right-0 z-10 bg-card shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
                     {(() => {
-                      const rowTotal = incomes.filter(i => i.source === row.source).reduce((sum, i) => sum + i.amount, 0)
+                      const rowTotal = sumAmounts(incomes.filter(i => i.source === row.source).map(i => i.amount))
                       return rowTotal > 0 ? `${currency}${rowTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
                     })()}
                   </td>
@@ -257,7 +258,7 @@ export function ActualsTab({
                   })}
                   <td className="p-4 border-l border-border/50 text-right font-bold text-foreground sticky right-0 z-10 bg-card shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
                     {(() => {
-                      const rowTotal = bills.filter(b => b.name === row.name && b.company === row.company).reduce((sum, b) => sum + b.amount, 0)
+                      const rowTotal = sumAmounts(bills.filter(b => b.name === row.name && b.company === row.company).map(b => b.amount))
                       return rowTotal > 0 ? `${currency}${rowTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
                     })()}
                   </td>
@@ -313,7 +314,7 @@ export function ActualsTab({
                   })}
                   <td className="p-4 border-l border-border/50 text-right font-bold text-foreground sticky right-0 z-10 bg-card shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
                     {(() => {
-                      const rowTotal = (creditCardStatements || []).filter(s => s.creditCardId === card.id).reduce((sum, s) => sum + s.balance, 0)
+                      const rowTotal = sumAmounts((creditCardStatements || []).filter(s => s.creditCardId === card.id).map(s => s.balance))
                       return rowTotal > 0 ? `${currency}${rowTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
                     })()}
                   </td>
@@ -324,7 +325,7 @@ export function ActualsTab({
               <tr>
                 <td className="p-4 font-bold text-foreground border-r border-border/50 sticky left-0 z-20 bg-muted">Total Paid</td>
                 {months.map(month => {
-                  const totalPaidBills = bills.filter(b => b.monthId === month.id && b.isPaid).reduce((s, b) => s + b.amount, 0)
+                  const totalPaidBills = sumAmounts(bills.filter(b => b.monthId === month.id && b.isPaid).map(b => b.amount))
                   return (
                     <td key={month.id} className="p-4 text-right font-bold text-primary border-r border-border/50">
                       {totalPaidBills > 0 ? `${currency}${totalPaidBills.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"}
@@ -333,7 +334,7 @@ export function ActualsTab({
                 })}
                 <td className="p-4 text-right font-bold text-primary border-l border-border/50 sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
                   {(() => {
-                    const grandTotalPaid = bills.filter(b => b.isPaid).reduce((s, b) => s + b.amount, 0)
+                    const grandTotalPaid = sumAmounts(bills.filter(b => b.isPaid).map(b => b.amount))
                     return grandTotalPaid > 0 ? `${currency}${grandTotalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
                   })()}
                 </td>
@@ -341,7 +342,7 @@ export function ActualsTab({
               <tr>
                 <td className="p-4 font-bold text-foreground border-r border-border/50 sticky left-0 z-20 bg-muted">Total Pending</td>
                 {months.map(month => {
-                  const totalPendingBills = bills.filter(b => b.monthId === month.id && !b.isPaid).reduce((s, b) => s + b.amount, 0)
+                  const totalPendingBills = sumAmounts(bills.filter(b => b.monthId === month.id && !b.isPaid).map(b => b.amount))
                   return (
                     <td key={month.id} className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50">
                       {totalPendingBills > 0 ? `${currency}${totalPendingBills.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"}
@@ -350,7 +351,7 @@ export function ActualsTab({
                 })}
                 <td className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-l border-border/50 sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
                   {(() => {
-                    const grandTotalPending = bills.filter(b => !b.isPaid).reduce((s, b) => s + b.amount, 0)
+                    const grandTotalPending = sumAmounts(bills.filter(b => !b.isPaid).map(b => b.amount))
                     return grandTotalPending > 0 ? `${currency}${grandTotalPending.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
                   })()}
                 </td>
