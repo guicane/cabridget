@@ -2,24 +2,43 @@ export const dynamic = "force-dynamic";
 
 import { getMonths } from "@/actions/cash-flow"
 import { CashFlowGrid } from "@/components/cash-flow/CashFlowGrid"
-import { MonthCreator } from "@/components/cash-flow/MonthCreator"
+import { YearSelector } from "@/components/YearSelector"
 import { RowCreator } from "@/components/cash-flow/RowCreator"
 
-export default async function CashFlowPage() {
-  // getMonths returns months ordered by createdAt desc.
-  // We want to display them left to right (oldest to newest), so we might want to reverse them.
-  // Wait, SnapshotGrid receives months and displays them left to right.
-  // getMonths returns `orderBy: { createdAt: "desc" }`, so newest is first.
-  // Usually grids have oldest on left, newest on right, or vice versa. We will reverse them here so newest is on right.
-  const rawMonths = await getMonths()
-  const months = [...rawMonths].reverse()
+export default async function CashFlowPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const searchParams = await props.searchParams;
+  const yearStr = searchParams?.year;
+  const year = yearStr ? parseInt(yearStr as string, 10) : new Date().getFullYear();
 
-  const entries = months.flatMap(m => 
-    m.ledgerEntries.map(entry => ({
-      ...entry,
-      amount: Number(entry.amount)
+  const rawMonths = await getMonths(year)
+  const months = [...rawMonths]
+
+  const entries = months.flatMap(m => {
+    const incomes = m.incomes.map(i => ({
+      id: i.id,
+      monthId: m.id,
+      type: "Income" as const,
+      description: i.source,
+      amount: Number(i.amount)
     }))
-  )
+    const bills = m.monthlyBills.map(b => ({
+      id: b.id,
+      monthId: m.id,
+      type: "Bill" as const,
+      description: b.name,
+      amount: Number(b.amount)
+    }))
+    const cards = m.creditCardStatements.map(c => ({
+      id: c.id,
+      monthId: m.id,
+      type: "CreditCard" as const,
+      description: c.creditCard.name,
+      amount: Number(c.balance)
+    }))
+    return [...incomes, ...bills, ...cards]
+  })
+
+  const strippedMonths = months.map(m => ({ id: m.id, identifier: m.identifier }))
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
@@ -29,25 +48,11 @@ export default async function CashFlowPage() {
           <p className="text-muted-foreground">Track your macro-level income and major expenses.</p>
         </div>
         <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
-          <RowCreator />
-          <div className="w-px h-8 bg-border hidden md:block" />
-          <MonthCreator />
+          <YearSelector currentYear={year} />
         </div>
       </div>
 
-      {months.length === 0 ? (
-        <div className="bg-card rounded-2xl p-12 text-center border border-border border-dashed">
-          <p className="text-muted-foreground text-lg">No months tracked yet.</p>
-          <p className="text-muted-foreground opacity-80 text-sm mt-2">Create a new month to start logging your cash flow.</p>
-        </div>
-      ) : entries.length === 0 ? (
-        <div className="bg-card rounded-2xl p-12 text-center border border-border border-dashed">
-          <p className="text-muted-foreground text-lg">No line items exist yet.</p>
-          <p className="text-muted-foreground opacity-80 text-sm mt-2">Use the "Add Row" button above to add your first income or bill.</p>
-        </div>
-      ) : (
-        <CashFlowGrid months={months} entries={entries} />
-      )}
+      <CashFlowGrid months={strippedMonths as any} entries={entries} />
     </div>
   )
 }

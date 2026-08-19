@@ -25,7 +25,7 @@ export function RowCreator() {
       >
         <option value="Income">Income</option>
         <option value="Bill">Bill</option>
-        <option value="CreditCardPayment">Credit Card</option>
+        <option value="CreditCard">Credit Card</option>
       </select>
       <input
         type="text"

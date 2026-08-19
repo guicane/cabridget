@@ -6,7 +6,7 @@ import { Trash2, Plus, Pencil, Check } from "lucide-react"
 import type { RecurringBill } from "@prisma/client"
 import { useSettings } from "@/components/providers/SettingsProvider"
 
-type SerializedRecurringBill = Omit<RecurringBill, "amount"> & { amount: number }
+type SerializedRecurringBill = RecurringBill
 
 export function TemplatesTab({ initialBills }: { initialBills: SerializedRecurringBill[] }) {
   const [isPending, setIsPending] = useState(false)
@@ -25,12 +25,10 @@ export function TemplatesTab({ initialBills }: { initialBills: SerializedRecurri
     await updateRecurringBill(id, field, value)
   }
 
-  const totalAmount = initialBills.reduce((sum, bill) => sum + bill.amount, 0)
-
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Add Bill Form */}
-      <div className="bg-card rounded-2xl border border-border p-6">
+      <div className="bg-card rounded-[18px] border border-border p-6">
         <h2 className="text-lg font-semibold text-foreground mb-4">Add Recurring Bill</h2>
         <form id="add-bill-form" action={handleCreate} className="flex flex-col md:flex-row items-start md:items-center gap-4">
           <input
@@ -46,18 +44,6 @@ export function TemplatesTab({ initialBills }: { initialBills: SerializedRecurri
             placeholder="Company (e.g. HSBC)"
             className="w-full md:flex-1 px-4 py-2 bg-input border border-border rounded-lg text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
           />
-          <div className="relative w-full md:w-32">
-            <span className="absolute left-3 top-2.5 text-muted-foreground text-sm">{currency}</span>
-            <input
-              type="number"
-              name="amount"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-              required
-              className="w-full pl-7 pr-4 py-2 bg-input border border-border rounded-lg text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
-            />
-          </div>
           <input
             type="number"
             name="dayOfMonth"
@@ -78,7 +64,7 @@ export function TemplatesTab({ initialBills }: { initialBills: SerializedRecurri
       </div>
 
       {/* Bills List */}
-      <div className="bg-card rounded-2xl border border-border overflow-hidden">
+      <div className="bg-card rounded-[18px] border border-border overflow-hidden">
         {initialBills.length === 0 ? (
           <div className="p-12 text-center border-dashed">
             <p className="text-muted-foreground text-lg">No recurring bills added yet.</p>
@@ -91,7 +77,6 @@ export function TemplatesTab({ initialBills }: { initialBills: SerializedRecurri
                   <th className="p-4 font-semibold text-foreground border-b border-border">Type</th>
                   <th className="p-4 font-semibold text-foreground border-b border-border">Company</th>
                   <th className="p-4 font-semibold text-foreground text-center border-b border-border">Day</th>
-                  <th className="p-4 font-semibold text-foreground text-right border-b border-border">Amount</th>
                   <th className="p-4 w-24 border-b border-border text-center">Actions</th>
                 </tr>
               </thead>
@@ -141,30 +126,12 @@ export function TemplatesTab({ initialBills }: { initialBills: SerializedRecurri
                           <div className="px-4 py-4 text-center text-muted-foreground">{bill.dayOfMonth || "--"}</div>
                         )}
                       </td>
-                      <td className="p-0 border-r border-border/50">
-                        {isEditing ? (
-                          <div className="relative flex items-center h-full">
-                            <span className="absolute left-4 text-muted-foreground text-sm">{currency}</span>
-                            <input
-                              type="number"
-                              defaultValue={bill.amount}
-                              step="0.01"
-                              onBlur={(e) => handleBlur(bill.id, "amount", e.target.value)}
-                              className="w-full pl-8 pr-4 py-4 bg-background border-none text-right text-foreground font-semibold focus:outline-none focus:ring-1 focus:ring-primary/50"
-                            />
-                          </div>
-                        ) : (
-                          <div className="px-4 py-4 text-right font-semibold text-foreground">
-                            {currency}{bill.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </div>
-                        )}
-                      </td>
                       <td className="p-4">
                         <div className="flex items-center justify-center gap-2">
                           {isEditing ? (
                             <button
                               onClick={() => setEditingId(null)}
-                              className="text-emerald-500 hover:text-emerald-400 p-2 transition-colors"
+                              className="text-primary hover:text-primary/80 p-2 transition-colors"
                               title="Done Editing"
                             >
                               <Check className="w-4 h-4" />
@@ -180,7 +147,7 @@ export function TemplatesTab({ initialBills }: { initialBills: SerializedRecurri
                           )}
                           <button
                             onClick={() => deleteRecurringBill(bill.id)}
-                            className="text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2"
+                            className="text-muted-foreground hover:text-negative opacity-0 group-hover:opacity-100 transition-opacity p-2"
                             title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -191,15 +158,6 @@ export function TemplatesTab({ initialBills }: { initialBills: SerializedRecurri
                   )
                 })}
               </tbody>
-              <tfoot className="bg-red-500/10 dark:bg-red-900/20">
-                <tr>
-                  <td colSpan={3} className="p-4 font-bold text-red-700 dark:text-red-400 text-lg">Total Recurring Base</td>
-                  <td className="p-4 text-right font-bold text-red-700 dark:text-red-400 text-lg">
-                    {currency}{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </td>
-                  <td></td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         )}

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { Actor, Geist_Mono } from "next/font/google";
+import { TopNav } from "@/components/layout/TopNav";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const actor = Actor({
+  weight: "400",
+  variable: "--font-actor",
   subsets: ["latin"],
 });
 
@@ -46,18 +47,15 @@ export default async function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-[100dvh] antialiased`}
+      className={`${actor.variable} ${geistMono.variable} antialiased`}
     >
-      <body className="h-[100dvh] flex flex-col md:flex-row overflow-hidden selection:bg-primary/30 bg-background text-foreground">
+      <body className="min-h-[100dvh] selection:bg-primary/30 bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <SettingsProvider settings={settings}>
-            <Sidebar />
-            
-            <main className="flex-1 overflow-y-auto relative pb-24 md:pb-0">
-              <div className="container mx-auto max-w-5xl p-4 md:p-8">
-                {children}
-              </div>
-            </main>
+            <div className="max-w-[1240px] mx-auto px-5 md:px-10 pt-8 pb-16">
+              <TopNav />
+              <main>{children}</main>
+            </div>
           </SettingsProvider>
         </ThemeProvider>
       </body>

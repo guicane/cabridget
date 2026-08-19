@@ -11,7 +11,7 @@ export default async function SettingsPage() {
         <p className="text-muted-foreground">Manage your global preferences.</p>
       </div>
 
-      <div className="bg-card rounded-2xl border border-border p-8">
+      <div className="bg-card rounded-[18px] border border-border p-8">
         <SettingsForm initialCurrency={settings.currency} />
       </div>
     </div>

@@ -54,7 +54,7 @@ export function SettingsForm({ initialCurrency }: { initialCurrency: string }) {
         </button>
         
         {saved && (
-          <span className="text-emerald-400 text-sm font-medium animate-in fade-in">
+          <span className="text-primary text-sm font-medium animate-in fade-in">
             Preferences saved!
           </span>
         )}

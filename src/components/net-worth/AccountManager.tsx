@@ -21,7 +21,7 @@ export function AccountManager() {
       <select
         name="category"
         required
-        className="px-4 py-2 bg-input border border-border rounded-lg text-base text-foreground focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+        className="px-4 py-2 bg-input border border-border rounded-lg text-base text-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
       >
         <option value="Pensions">Pensions</option>
         <option value="StockISA">Stock ISA</option>
@@ -33,12 +33,12 @@ export function AccountManager() {
         name="name"
         placeholder="e.g. Fidelity 401k"
         required
-        className="px-4 py-2 bg-input border border-border rounded-lg text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+        className="px-4 py-2 bg-input border border-border rounded-lg text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
       />
       <button
         type="submit"
         disabled={isPending}
-        className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+        className="px-4 py-2 bg-gradient-primary text-[#0c0b12] text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
       >
         <Plus className="w-4 h-4" />
         {isPending ? "Adding..." : "Add Account"}

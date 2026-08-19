@@ -1,48 +1,40 @@
 "use server"
 
+import { ensureMonthsForYear, sortMonths } from "./months"
+
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { EntryType } from "@prisma/client"
 
-export async function getMonths() {
-  return prisma.month.findMany({
+export async function getMonths(year: number) {
+  const identifiers = await ensureMonthsForYear(year)
+  const rawMonths = await prisma.month.findMany({
+    where: { identifier: { in: identifiers } },
     include: {
-      ledgerEntries: {
-        orderBy: [
-          { orderIndex: "asc" },
-          { amount: "desc" }
-        ]
+      incomes: true,
+      monthlyBills: true,
+      creditCardStatements: {
+        include: {
+          creditCard: true
+        }
       }
-    },
-    orderBy: { createdAt: "desc" }
+    }
   })
+  return sortMonths(rawMonths, identifiers)
 }
 
 export async function getMonthById(id: string) {
   return prisma.month.findUnique({
     where: { id },
     include: {
-      ledgerEntries: {
-        orderBy: [
-          { orderIndex: "asc" },
-          { amount: "desc" }
-        ]
+      incomes: true,
+      monthlyBills: true,
+      creditCardStatements: {
+        include: {
+          creditCard: true
+        }
       }
     }
   })
-}
-
-export async function updateLedgerEntryOrder(updates: { id: string, orderIndex: number }[]) {
-  await prisma.$transaction(
-    updates.map((update) => 
-      prisma.ledgerEntry.update({
-        where: { id: update.id },
-        data: { orderIndex: update.orderIndex }
-      })
-    )
-  )
-  
-  revalidatePath("/cash-flow", "layout")
 }
 
 export async function getOrCreateMonth(identifier: string) {
@@ -56,99 +48,108 @@ export async function getOrCreateMonth(identifier: string) {
   return month
 }
 
-export async function addLedgerEntry(formData: FormData) {
-  const monthId = formData.get("monthId") as string
-  const type = formData.get("type") as EntryType
-  const description = formData.get("description") as string
-  const amountStr = formData.get("amount") as string
-  
-  if (!monthId || !type || !description || !amountStr) {
-    throw new Error("Missing required fields")
-  }
-
+export async function upsertCashFlowRow(monthId: string, type: "Income" | "Bill" | "CreditCard", description: string, amountStr: string) {
   const amount = parseFloat(amountStr)
-  if (isNaN(amount)) {
-    throw new Error("Invalid amount")
-  }
+  const isInvalid = !amountStr || isNaN(amount)
 
-  await prisma.ledgerEntry.create({
-    data: {
-      monthId,
-      type,
-      description,
-      amount,
-    },
-  })
-
-  revalidatePath("/cash-flow", "layout")
-}
-
-export async function deleteLedgerEntry(id: string) {
-  await prisma.ledgerEntry.delete({
-    where: { id },
-  })
-  
-  revalidatePath("/cash-flow", "layout")
-}
-
-export async function upsertLedgerEntry(monthId: string, type: EntryType, description: string, amountStr: string) {
-  const amount = parseFloat(amountStr)
-  
-  // Find if an entry already exists for this exact month, type, and description
-  const existing = await prisma.ledgerEntry.findFirst({
-    where: { monthId, type, description }
-  })
-
-  // If empty string or NaN is passed, and we want to delete it or set to 0
-  if (!amountStr || isNaN(amount)) {
-    if (existing) {
-      await prisma.ledgerEntry.delete({ where: { id: existing.id } })
-    }
-  } else {
-    if (existing) {
-      await prisma.ledgerEntry.update({
-        where: { id: existing.id },
-        data: { amount }
-      })
+  if (type === "Income") {
+    const existing = await prisma.income.findFirst({
+      where: { monthId, source: description }
+    })
+    if (isInvalid) {
+      if (existing) await prisma.income.delete({ where: { id: existing.id } })
     } else {
-      await prisma.ledgerEntry.create({
-        data: { monthId, type, description, amount }
+      if (existing) {
+        await prisma.income.update({ where: { id: existing.id }, data: { amount } })
+      } else {
+        await prisma.income.create({ data: { monthId, source: description, amount } })
+      }
+    }
+  } else if (type === "Bill") {
+    const existing = await prisma.monthlyBill.findFirst({
+      where: { monthId, name: description }
+    })
+    if (isInvalid) {
+      if (existing) await prisma.monthlyBill.delete({ where: { id: existing.id } })
+    } else {
+      if (existing) {
+        await prisma.monthlyBill.update({ where: { id: existing.id }, data: { amount } })
+      } else {
+        await prisma.monthlyBill.create({ data: { monthId, name: description, amount } })
+      }
+    }
+  } else if (type === "CreditCard") {
+    let card = await prisma.creditCard.findUnique({ where: { name: description } })
+    if (!card && !isInvalid) {
+      card = await prisma.creditCard.create({ data: { name: description } })
+    }
+    if (card) {
+      const existing = await prisma.creditCardStatement.findUnique({
+        where: { creditCardId_monthId: { creditCardId: card.id, monthId } }
       })
+      if (isInvalid) {
+        if (existing) await prisma.creditCardStatement.delete({ where: { id: existing.id } })
+      } else {
+        if (existing) {
+          await prisma.creditCardStatement.update({ where: { id: existing.id }, data: { balance: amount } })
+        } else {
+          await prisma.creditCardStatement.create({ data: { creditCardId: card.id, monthId, balance: amount } })
+        }
+      }
     }
   }
 
   revalidatePath("/cash-flow", "layout")
 }
 
-export async function deleteCashFlowRow(type: EntryType, description: string) {
-  await prisma.ledgerEntry.deleteMany({
-    where: { type, description }
-  })
+export async function deleteCashFlowRow(type: "Income" | "Bill" | "CreditCard", description: string) {
+  if (type === "Income") {
+    await prisma.income.deleteMany({ where: { source: description } })
+  } else if (type === "Bill") {
+    await prisma.monthlyBill.deleteMany({ where: { name: description } })
+  } else if (type === "CreditCard") {
+    const card = await prisma.creditCard.findUnique({ where: { name: description } })
+    if (card) {
+      await prisma.creditCardStatement.deleteMany({ where: { creditCardId: card.id } })
+    }
+  }
   revalidatePath("/cash-flow", "layout")
 }
 
 export async function addCashFlowRow(formData: FormData) {
-  const type = formData.get("type") as EntryType
+  const type = formData.get("type") as "Income" | "Bill" | "CreditCard"
   const description = formData.get("description") as string
   
   if (!type || !description) return
 
-  // Find the most recent month to attach the initial 0.00 entry to
-  // so that the row appears in the grid.
   const latestMonth = await prisma.month.findFirst({
     orderBy: { createdAt: 'desc' }
   })
 
   if (!latestMonth) return
 
-  await prisma.ledgerEntry.create({
-    data: {
-      monthId: latestMonth.id,
-      type,
-      description,
-      amount: 0
+  if (type === "Income") {
+    await prisma.income.create({
+      data: { monthId: latestMonth.id, source: description, amount: 0 }
+    })
+  } else if (type === "Bill") {
+    await prisma.monthlyBill.create({
+      data: { monthId: latestMonth.id, name: description, amount: 0 }
+    })
+  } else if (type === "CreditCard") {
+    let card = await prisma.creditCard.findUnique({ where: { name: description } })
+    if (!card) {
+      card = await prisma.creditCard.create({ data: { name: description } })
     }
-  })
+    const existing = await prisma.creditCardStatement.findUnique({
+      where: { creditCardId_monthId: { creditCardId: card.id, monthId: latestMonth.id } }
+    })
+    if (!existing) {
+      await prisma.creditCardStatement.create({
+        data: { creditCardId: card.id, monthId: latestMonth.id, balance: 0 }
+      })
+    }
+  }
 
   revalidatePath("/cash-flow", "layout")
 }

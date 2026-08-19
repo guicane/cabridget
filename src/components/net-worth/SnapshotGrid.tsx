@@ -25,6 +25,7 @@ type Account = {
 type Month = {
   id: string
   identifier: string
+  creditCardStatements: { balance: any }[]
 }
 
 export function SnapshotGrid({ accounts, months }: { accounts: Account[], months: Month[] }) {
@@ -40,12 +41,17 @@ export function SnapshotGrid({ accounts, months }: { accounts: Account[], months
     setIsUpdating(null)
   }
 
-  // Calculate totals per month across all accounts
+  // Calculate totals per month across all accounts minus credit card debt
   const getMonthTotal = (monthId: string) => {
-    return accounts.reduce((total, account) => {
+    const assets = accounts.reduce((total, account) => {
       const snap = account.snapshots.find(s => s.monthId === monthId)
       return total + (snap ? Number(snap.balance) : 0)
     }, 0)
+
+    const month = months.find(m => m.id === monthId)
+    const ccDebt = month?.creditCardStatements.reduce((sum, cc) => sum + Number(cc.balance), 0) || 0
+
+    return assets - ccDebt
   }
 
   // Group accounts by category
@@ -71,7 +77,7 @@ export function SnapshotGrid({ accounts, months }: { accounts: Account[], months
   }
 
   return (
-    <div className="bg-card rounded-2xl border border-border overflow-hidden">
+    <div className="bg-card rounded-[18px] border border-border overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -105,7 +111,7 @@ export function SnapshotGrid({ accounts, months }: { accounts: Account[], months
                       <span className="font-medium text-foreground">{account.name}</span>
                       <button
                         onClick={() => deleteInvestmentAccount(account.id)}
-                        className="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-muted-foreground hover:text-negative opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Delete Account"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -124,7 +130,7 @@ export function SnapshotGrid({ accounts, months }: { accounts: Account[], months
                               defaultValue={balance}
                               onBlur={(e) => handleBlur(account.id, month.id, e.target.value)}
                               placeholder="0.00"
-                              className="w-full pl-6 pr-3 py-1.5 bg-transparent hover:bg-muted focus:bg-background border border-transparent rounded text-right text-base text-foreground focus:outline-none focus:border-indigo-500/50 transition-all"
+                              className="w-full pl-6 pr-3 py-1.5 bg-transparent hover:bg-muted focus:bg-background border border-transparent rounded text-right text-base text-foreground focus:outline-none focus:border-primary/50 transition-all"
                             />
                           </div>
                         </td>
@@ -148,11 +154,11 @@ export function SnapshotGrid({ accounts, months }: { accounts: Account[], months
             )
           })}
           
-          <tfoot className="bg-indigo-500/10">
+          <tfoot className="bg-primary/10">
             <tr>
-              <td className="p-4 font-semibold text-indigo-400 text-lg">Total Net Worth</td>
+              <td className="p-4 font-semibold text-primary text-lg">Total Net Worth</td>
               {months.map(month => (
-                <td key={month.id} className="p-4 text-right font-bold text-indigo-400 text-lg">
+                <td key={month.id} className="p-4 text-right font-bold text-primary text-lg">
                   {currency}{getMonthTotal(month.id).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </td>
               ))}

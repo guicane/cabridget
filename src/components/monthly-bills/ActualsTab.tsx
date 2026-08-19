@@ -1,61 +1,68 @@
 "use client"
 
 import { useState } from "react"
-import { addMonthlyBill, deleteMonthlyBill, updateMonthlyBill, copyTemplatesToMonth } from "@/actions/monthly-bills"
-import { Trash2, Plus, Pencil, Check, Copy } from "lucide-react"
-import type { MonthlyBill, Month } from "@prisma/client"
+import { addMonthlyBill, updateMonthlyBill, copyTemplatesToMonth, deleteMonthlyBillSeries, updateIncome, deleteIncomeSeries, updateCreditCardStatement, deleteCreditCardStatementSeries } from "@/actions/monthly-bills"
+import { CheckCircle2, Circle, Copy, Plus, Trash2 } from "lucide-react"
+import type { Month } from "@prisma/client"
 import { useSettings } from "@/components/providers/SettingsProvider"
 import { cn } from "@/lib/utils"
 
-type SerializedMonthlyBill = Omit<MonthlyBill, "amount"> & { amount: number }
+type SerializedMonthlyBill = { id: string, monthId: string, name: string, company: string | null, amount: number, dayOfMonth: number | null, isPaid: boolean }
+type SerializedIncome = { id: string, monthId: string, source: string, amount: number, isPaid: boolean }
 
 export function ActualsTab({ 
   months, 
   bills,
-  templates 
+  templates,
+  incomes,
+  incomeTemplates,
+  creditCards = [],
+  creditCardStatements = []
 }: { 
   months: Month[], 
   bills: SerializedMonthlyBill[],
-  templates: any[]
+  templates: any[],
+  incomes: SerializedIncome[],
+  incomeTemplates: any[],
+  creditCards?: any[],
+  creditCardStatements?: any[]
 }) {
-  const [selectedMonthId, setSelectedMonthId] = useState<string>(months[0]?.id || "")
-  const [isPending, setIsPending] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
   const { currency } = useSettings()
+  const [isPending, setIsPending] = useState(false)
+  const [selectedMonthId, setSelectedMonthId] = useState<string>(months[0]?.id || "")
 
-  const currentBills = bills.filter(b => b.monthId === selectedMonthId)
-  
-  const currentMonthObj = months.find(m => m.id === selectedMonthId)
-  const monthDate = currentMonthObj ? new Date(`1 ${currentMonthObj.identifier}`) : new Date(NaN)
-  const isValidDate = !isNaN(monthDate.getTime())
-  
-  const now = new Date()
-  // Strip time for strict day comparison
-  const todayTime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  // Find unique rows for Bills
+  const rowMap = new Map<string, { name: string, company: string | null }>()
+  bills.forEach(b => rowMap.set(`${b.name}-${b.company || ''}`, { name: b.name, company: b.company }))
+  templates.forEach(t => rowMap.set(`${t.name}-${t.company || ''}`, { name: t.name, company: t.company }))
+  const uniqueBillRows = Array.from(rowMap.values()).sort((a, b) => a.name.localeCompare(b.name))
 
-  const processedBills = currentBills.map(bill => {
-    let isPending = false
-    
-    if (isValidDate && bill.dayOfMonth) {
-      const dueDate = new Date(monthDate.getFullYear(), monthDate.getMonth(), bill.dayOfMonth).getTime()
-      if (todayTime < dueDate) {
-        isPending = true
-      }
-    } else {
-      isPending = true
-    }
+  // Find unique rows for Incomes
+  const incomeRowMap = new Map<string, { source: string }>()
+  incomes.forEach(i => incomeRowMap.set(i.source, { source: i.source }))
+  incomeTemplates.forEach(t => incomeRowMap.set(t.source, { source: t.source }))
+  const uniqueIncomeRows = Array.from(incomeRowMap.values()).sort((a, b) => a.source.localeCompare(b.source))
 
-    return { ...bill, isPending }
-  })
+  const handleTogglePaid = async (billId: string, currentPaid: boolean) => {
+    await updateMonthlyBill(billId, "isPaid", !currentPaid)
+  }
 
-  const totalPending = processedBills.filter(b => b.isPending).reduce((sum, b) => sum + b.amount, 0)
-  const totalPaid = processedBills.filter(b => !b.isPending).reduce((sum, b) => sum + b.amount, 0)
+  const handleAmountBlur = async (billId: string, val: string) => {
+    await updateMonthlyBill(billId, "amount", val)
+  }
 
-  const missingTemplates = templates.filter(t => 
-    !currentBills.some(cb => cb.name === t.name && cb.company === t.company)
-  )
-  
-  const hasMissing = missingTemplates.length > 0
+  const handleIncomeTogglePaid = async (incomeId: string, currentPaid: boolean) => {
+    await updateIncome(incomeId, "isPaid", !currentPaid)
+  }
+
+  const handleIncomeAmountBlur = async (incomeId: string, val: string) => {
+    await updateIncome(incomeId, "amount", val)
+  }
+
+  const handleStatementAmountBlur = async (statementId: string, val: string) => {
+    await updateCreditCardStatement(statementId, val)
+  }
+
   async function handleCreate(formData: FormData) {
     setIsPending(true)
     await addMonthlyBill(formData)
@@ -64,19 +71,9 @@ export function ActualsTab({
     if (form) form.reset()
   }
 
-  const handleBlur = async (id: string, field: string, value: string | boolean) => {
-    await updateMonthlyBill(id, field, value)
-  }
-
-  const handleCopy = async () => {
-    setIsPending(true)
-    await copyTemplatesToMonth(selectedMonthId)
-    setIsPending(false)
-  }
-
   if (months.length === 0) {
     return (
-      <div className="bg-card rounded-2xl p-12 text-center border border-border border-dashed">
+      <div className="bg-card rounded-[18px] p-12 text-center border border-border border-dashed">
         <p className="text-muted-foreground text-lg">No months tracked yet.</p>
         <p className="text-muted-foreground opacity-80 text-sm mt-2">Go to Cash Flow to create your first month.</p>
       </div>
@@ -84,227 +81,283 @@ export function ActualsTab({
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Month Selector */}
-      <div className="flex items-center gap-4">
-        <label className="text-sm font-medium text-muted-foreground">Select Month:</label>
-        <select
-          value={selectedMonthId}
-          onChange={(e) => setSelectedMonthId(e.target.value)}
-          className="px-4 py-2 bg-input border border-border rounded-lg text-base text-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
-        >
-          {months.map(m => (
-            <option key={m.id} value={m.id}>{m.identifier}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Add Bill Form */}
-      <div className="bg-card rounded-2xl border border-border p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Add Bill for {months.find(m => m.id === selectedMonthId)?.identifier}</h2>
-          {hasMissing && (
-            <button
-              onClick={handleCopy}
-              disabled={isPending}
-              className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-            >
-              <Copy className="w-4 h-4" />
-              {currentBills.length === 0 ? "Copy from Recurring" : "Sync Missing from Recurring"}
-            </button>
-          )}
-        </div>
-        <form id="add-monthly-bill-form" action={handleCreate} className="flex flex-col md:flex-row items-start md:items-center gap-4">
-          <input type="hidden" name="monthId" value={selectedMonthId} />
-          <input
-            type="text"
-            name="name"
-            placeholder="Type (e.g. Mortgage)"
-            required
-            className="w-full md:flex-1 px-4 py-2 bg-input border border-border rounded-lg text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
-          />
-          <input
-            type="text"
-            name="company"
-            placeholder="Company (e.g. HSBC)"
-            className="w-full md:flex-1 px-4 py-2 bg-input border border-border rounded-lg text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
-          />
-          <div className="relative w-full md:w-32">
-            <span className="absolute left-3 top-2.5 text-muted-foreground text-sm">{currency}</span>
-            <input
-              type="number"
-              name="amount"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-              required
-              className="w-full pl-7 pr-4 py-2 bg-input border border-border rounded-lg text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
-            />
-          </div>
-          <input
-            type="number"
-            name="dayOfMonth"
-            min="1"
-            max="31"
-            placeholder="Day (1-31)"
-            className="w-full md:w-32 px-4 py-2 bg-input border border-border rounded-lg text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
-          />
-          <button
-            type="submit"
-            disabled={isPending}
-            className="w-full md:w-auto px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 h-[42px]"
-          >
-            <Plus className="w-4 h-4" />
-            {isPending ? "Adding..." : "Add"}
-          </button>
-        </form>
-      </div>
-
-      {/* Bills List */}
-      <div className="bg-card rounded-2xl border border-border overflow-hidden">
-        {currentBills.length === 0 ? (
-          <div className="p-12 text-center border-dashed">
-            <p className="text-muted-foreground text-lg">No bills logged for this month.</p>
-            <p className="text-muted-foreground opacity-80 text-sm mt-2">Add one manually or copy from your recurring bills.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-muted">
-                  <th className="p-4 font-semibold text-foreground border-b border-border">Type</th>
-                  <th className="p-4 font-semibold text-foreground border-b border-border">Company</th>
-                  <th className="p-4 font-semibold text-foreground text-center border-b border-border">Day</th>
-                  <th className="p-4 font-semibold text-foreground text-right border-b border-border">Amount</th>
-                  <th className="p-4 w-24 border-b border-border text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {processedBills.map(bill => {
-                  const isEditing = editingId === bill.id
-
+    <div className="space-y-6">
+      <div className="bg-card rounded-[18px] border border-border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-muted">
+                <th className="p-4 font-semibold text-foreground border-b border-border min-w-[200px] sticky left-0 z-20 bg-muted">Line Item</th>
+                {months.map(month => {
+                  const monthBills = bills.filter(b => b.monthId === month.id)
+                  const hasMissing = templates.some(t => !monthBills.some(mb => mb.name === t.name && mb.company === t.company))
+                  
+                  const monthIncomes = incomes.filter(i => i.monthId === month.id)
+                  const hasMissingIncome = incomeTemplates.some(t => !monthIncomes.some(mi => mi.source === t.source))
+                  
+                  const monthStatements = (creditCardStatements || []).filter(s => s.monthId === month.id)
+                  const hasMissingCards = (creditCards || []).some(c => !monthStatements.some(ms => ms.creditCardId === c.id))
+                  
                   return (
-                    <tr key={bill.id} className={cn(
-                      "border-b border-border transition-colors group",
-                      !bill.isPending ? "bg-emerald-500/5 hover:bg-emerald-500/10" : "hover:bg-muted/50"
-                    )}>
-                      <td className="p-0 border-r border-border/50">
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            defaultValue={bill.name}
-                            onBlur={(e) => handleBlur(bill.id, "name", e.target.value)}
-                            className="w-full px-4 py-4 bg-background border-none text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 font-medium"
-                          />
-                        ) : (
-                          <div className={cn("px-4 py-4 font-medium", !bill.isPending ? "text-emerald-700 dark:text-emerald-400" : "text-foreground")}>
-                            {bill.name}
-                          </div>
+                    <th key={month.id} className="p-4 font-semibold text-foreground border-b border-border min-w-[180px]">
+                      <div className="flex items-center justify-between">
+                        <span>{month.identifier}</span>
+                        {(hasMissing || hasMissingIncome || hasMissingCards) && (
+                          <button 
+                            onClick={() => copyTemplatesToMonth(month.id)}
+                            className="text-xs flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded hover:bg-primary/20 transition-colors"
+                            title="Sync missing items from templates"
+                          >
+                            <Copy className="w-3 h-3" /> Sync
+                          </button>
                         )}
-                      </td>
-                      <td className="p-0 border-r border-border/50">
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            defaultValue={bill.company || ""}
-                            placeholder="--"
-                            onBlur={(e) => handleBlur(bill.id, "company", e.target.value)}
-                            className="w-full px-4 py-4 bg-background border-none text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
-                          />
-                        ) : (
-                          <div className={cn("px-4 py-4", !bill.isPending ? "text-emerald-700/80 dark:text-emerald-400/80" : "text-muted-foreground")}>
-                            {bill.company || "--"}
+                      </div>
+                    </th>
+                  )
+                })}
+                <th className="p-4 font-semibold text-foreground text-right border-b border-border min-w-[120px] sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* INCOMES SECTION */}
+              {uniqueIncomeRows.length > 0 && (
+                <tr className="bg-muted/50">
+                  <td colSpan={months.length + 2} className="p-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Income
+                  </td>
+                </tr>
+              )}
+              {uniqueIncomeRows.map(row => (
+                <tr key={`income-${row.source}`} className="border-b border-border hover:bg-muted/30 transition-colors group">
+                  <td className="p-4 border-r border-border/50 relative pr-10 sticky left-0 z-10 bg-card shadow-[4px_0_12px_rgba(0,0,0,0.02)]">
+                    <div className="font-medium text-foreground">{row.source}</div>
+                    <button
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to delete this?")) {
+                          deleteIncomeSeries(row.source)
+                        }
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-negative opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete income from all months"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                  {months.map(month => {
+                    const income = incomes.find(i => i.monthId === month.id && i.source === row.source)
+                    if (!income) {
+                      return <td key={`income-${month.id}`} className="p-4 border-r border-border/50 text-center text-muted-foreground/30">--</td>
+                    }
+                    
+                    return (
+                      <td key={`income-${month.id}`} className={cn(
+                        "p-0 border-r border-border/50 relative transition-colors",
+                        income.isPaid ? "bg-primary/10" : ""
+                      )}>
+                        <div className="flex items-center justify-between px-3 py-3 h-full gap-2">
+                          <button 
+                            onClick={() => handleIncomeTogglePaid(income.id, income.isPaid)}
+                            className={cn(
+                              "flex-shrink-0 transition-colors",
+                              income.isPaid ? "text-primary hover:text-primary/80" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            {income.isPaid ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                          </button>
+                          
+                          <div className="relative flex items-center w-full">
+                            <span className="absolute left-2 text-muted-foreground text-sm">{currency}</span>
+                            <input
+                              type="number"
+                              defaultValue={income.amount}
+                              step="0.01"
+                              onBlur={(e) => handleIncomeAmountBlur(income.id, e.target.value)}
+                              className={cn(
+                                "w-full pl-6 pr-2 py-1 bg-transparent border-none text-right focus:outline-none focus:bg-background rounded transition-all",
+                                income.isPaid ? "text-primary font-medium" : "text-foreground font-medium"
+                              )}
+                            />
                           </div>
-                        )}
+                        </div>
                       </td>
-                      <td className="p-0 border-r border-border/50 w-24">
-                        {isEditing ? (
-                          <input
-                            type="number"
-                            defaultValue={bill.dayOfMonth || ""}
-                            placeholder="--"
-                            min="1"
-                            max="31"
-                            onBlur={(e) => handleBlur(bill.id, "dayOfMonth", e.target.value)}
-                            className="w-full px-4 py-4 bg-background border-none text-center text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
-                          />
-                        ) : (
-                          <div className={cn("px-4 py-4 text-center", !bill.isPending ? "text-emerald-700/80 dark:text-emerald-400/80" : "text-muted-foreground")}>
-                            {bill.dayOfMonth || "--"}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-0 border-r border-border/50">
-                        {isEditing ? (
-                          <div className="relative flex items-center h-full">
-                            <span className="absolute left-4 text-muted-foreground text-sm">{currency}</span>
+                    )
+                  })}
+                  <td className="p-4 border-l border-border/50 text-right font-bold text-foreground sticky right-0 z-10 bg-card shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
+                    {(() => {
+                      const rowTotal = incomes.filter(i => i.source === row.source).reduce((sum, i) => sum + i.amount, 0)
+                      return rowTotal > 0 ? `${currency}${rowTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
+                    })()}
+                  </td>
+                </tr>
+              ))}
+
+              {/* BILLS SECTION */}
+              {uniqueBillRows.length > 0 && (
+                <tr className="bg-muted/50">
+                  <td colSpan={months.length + 2} className="p-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Bills
+                  </td>
+                </tr>
+              )}
+              {uniqueBillRows.map(row => (
+                <tr key={`bill-${row.name}-${row.company}`} className="border-b border-border hover:bg-muted/30 transition-colors group">
+                  <td className="p-4 border-r border-border/50 relative pr-10 sticky left-0 z-10 bg-card shadow-[4px_0_12px_rgba(0,0,0,0.02)]">
+                    <div className="font-medium text-foreground">{row.name}</div>
+                    {row.company && <div className="text-xs text-muted-foreground">{row.company}</div>}
+                    <button
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to delete this?")) {
+                          deleteMonthlyBillSeries(row.name, row.company)
+                        }
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-negative opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete bill from all months"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                  {months.map(month => {
+                    const bill = bills.find(b => b.monthId === month.id && b.name === row.name && b.company === row.company)
+                    if (!bill) {
+                      return <td key={`bill-${month.id}`} className="p-4 border-r border-border/50 text-center text-muted-foreground/30">--</td>
+                    }
+                    
+                    return (
+                      <td key={`bill-${month.id}`} className={cn(
+                        "p-0 border-r border-border/50 relative transition-colors",
+                        bill.isPaid ? "bg-primary/10" : ""
+                      )}>
+                        <div className="flex items-center justify-between px-3 py-3 h-full gap-2">
+                          <button 
+                            onClick={() => handleTogglePaid(bill.id, bill.isPaid)}
+                            className={cn(
+                              "flex-shrink-0 transition-colors",
+                              bill.isPaid ? "text-primary hover:text-primary/80" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            {bill.isPaid ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                          </button>
+                          
+                          <div className="relative flex items-center w-full">
+                            <span className="absolute left-2 text-muted-foreground text-sm">{currency}</span>
                             <input
                               type="number"
                               defaultValue={bill.amount}
                               step="0.01"
-                              onBlur={(e) => handleBlur(bill.id, "amount", e.target.value)}
-                              className="w-full pl-8 pr-4 py-4 bg-background border-none text-right text-foreground font-semibold focus:outline-none focus:ring-1 focus:ring-primary/50"
+                              onBlur={(e) => handleAmountBlur(bill.id, e.target.value)}
+                              className={cn(
+                                "w-full pl-6 pr-2 py-1 bg-transparent border-none text-right focus:outline-none focus:bg-background rounded transition-all",
+                                bill.isPaid ? "text-primary font-medium" : "text-foreground font-medium"
+                              )}
                             />
                           </div>
-                        ) : (
-                          <div className={cn("px-4 py-4 text-right font-semibold", !bill.isPending ? "text-emerald-700 dark:text-emerald-400" : "text-foreground")}>
-                            {currency}{bill.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-center gap-2">
-                          {isEditing ? (
-                            <button
-                              onClick={() => setEditingId(null)}
-                              className="text-emerald-500 hover:text-emerald-400 p-2 transition-colors"
-                              title="Done Editing"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => setEditingId(bill.id)}
-                              className="text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity p-2"
-                              title="Edit"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => deleteMonthlyBill(bill.id)}
-                            className="text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
                         </div>
                       </td>
-                    </tr>
+                    )
+                  })}
+                  <td className="p-4 border-l border-border/50 text-right font-bold text-foreground sticky right-0 z-10 bg-card shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
+                    {(() => {
+                      const rowTotal = bills.filter(b => b.name === row.name && b.company === row.company).reduce((sum, b) => sum + b.amount, 0)
+                      return rowTotal > 0 ? `${currency}${rowTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
+                    })()}
+                  </td>
+                </tr>
+              ))}
+
+              {/* CREDIT CARDS SECTION */}
+              {(creditCards || []).length > 0 && (
+                <tr className="bg-muted/50">
+                  <td colSpan={months.length + 2} className="p-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Credit Cards
+                  </td>
+                </tr>
+              )}
+              {(creditCards || []).map(card => (
+                <tr key={`card-${card.id}`} className="border-b border-border hover:bg-muted/30 transition-colors group">
+                  <td className="p-4 border-r border-border/50 relative pr-10 sticky left-0 z-10 bg-card shadow-[4px_0_12px_rgba(0,0,0,0.02)]">
+                    <div className="font-medium text-foreground">{card.name}</div>
+                    <button
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to delete this?")) {
+                          deleteCreditCardStatementSeries(card.id)
+                        }
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-negative opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete credit card from all months"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                  {months.map(month => {
+                    const stmt = (creditCardStatements || []).find(s => s.monthId === month.id && s.creditCardId === card.id)
+                    if (!stmt) {
+                      return <td key={`card-${month.id}`} className="p-4 border-r border-border/50 text-center text-muted-foreground/30">--</td>
+                    }
+                    
+                    return (
+                      <td key={`card-${month.id}`} className="p-0 border-r border-border/50 relative transition-colors">
+                        <div className="flex items-center justify-between px-3 py-3 h-full gap-2">
+                          <div className="relative flex items-center w-full">
+                            <span className="absolute left-2 text-muted-foreground text-sm">{currency}</span>
+                            <input
+                              type="number"
+                              defaultValue={stmt.balance}
+                              step="0.01"
+                              onBlur={(e) => handleStatementAmountBlur(stmt.id, e.target.value)}
+                              className="w-full pl-6 pr-2 py-1 bg-transparent border-none text-right focus:outline-none focus:bg-background rounded transition-all text-foreground font-medium"
+                            />
+                          </div>
+                        </div>
+                      </td>
+                    )
+                  })}
+                  <td className="p-4 border-l border-border/50 text-right font-bold text-foreground sticky right-0 z-10 bg-card shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
+                    {(() => {
+                      const rowTotal = (creditCardStatements || []).filter(s => s.creditCardId === card.id).reduce((sum, s) => sum + s.balance, 0)
+                      return rowTotal > 0 ? `${currency}${rowTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
+                    })()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="bg-muted/30">
+              <tr>
+                <td className="p-4 font-bold text-foreground border-r border-border/50 sticky left-0 z-20 bg-muted">Total Paid</td>
+                {months.map(month => {
+                  const totalPaidBills = bills.filter(b => b.monthId === month.id && b.isPaid).reduce((s, b) => s + b.amount, 0)
+                  return (
+                    <td key={month.id} className="p-4 text-right font-bold text-primary border-r border-border/50">
+                      {totalPaidBills > 0 ? `${currency}${totalPaidBills.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"}
+                    </td>
                   )
                 })}
-              </tbody>
-              <tfoot className="bg-muted/30">
-                {totalPending > 0 && (
-                  <tr className="bg-yellow-500/10 dark:bg-yellow-900/20 border-t border-yellow-500/20">
-                    <td colSpan={4} className="p-4 font-bold text-yellow-700 dark:text-yellow-400 text-lg">Total Pending</td>
-                    <td className="p-4 text-right font-bold text-yellow-700 dark:text-yellow-400 text-lg">
-                      {currency}{totalPending.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                <td className="p-4 text-right font-bold text-primary border-l border-border/50 sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
+                  {(() => {
+                    const grandTotalPaid = bills.filter(b => b.isPaid).reduce((s, b) => s + b.amount, 0)
+                    return grandTotalPaid > 0 ? `${currency}${grandTotalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
+                  })()}
+                </td>
+              </tr>
+              <tr>
+                <td className="p-4 font-bold text-foreground border-r border-border/50 sticky left-0 z-20 bg-muted">Total Pending</td>
+                {months.map(month => {
+                  const totalPendingBills = bills.filter(b => b.monthId === month.id && !b.isPaid).reduce((s, b) => s + b.amount, 0)
+                  return (
+                    <td key={month.id} className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50">
+                      {totalPendingBills > 0 ? `${currency}${totalPendingBills.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"}
                     </td>
-                    <td></td>
-                  </tr>
-                )}
-                <tr className="bg-emerald-500/10 dark:bg-emerald-900/20 border-t border-emerald-500/20">
-                  <td colSpan={4} className="p-4 font-bold text-emerald-700 dark:text-emerald-400 text-lg">Total Paid</td>
-                  <td className="p-4 text-right font-bold text-emerald-700 dark:text-emerald-400 text-lg">
-                    {currency}{totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+                  )
+                })}
+                <td className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-l border-border/50 sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
+                  {(() => {
+                    const grandTotalPending = bills.filter(b => !b.isPaid).reduce((s, b) => s + b.amount, 0)
+                    return grandTotalPending > 0 ? `${currency}${grandTotalPending.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
+                  })()}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
     </div>
   )

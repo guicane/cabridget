@@ -1,9 +1,11 @@
 "use server"
 
+import { ensureMonthsForYear, sortMonths } from "./months"
+
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 
-export async function getNetWorthData() {
+export async function getNetWorthData(year: number) {
   const accounts = await prisma.investmentAccount.findMany({
     include: {
       snapshots: {
@@ -22,11 +24,14 @@ export async function getNetWorthData() {
     }
   })
 
-  const months = await prisma.month.findMany({
-    orderBy: {
-      createdAt: "desc"
+  const identifiers = await ensureMonthsForYear(year)
+  const rawMonths = await prisma.month.findMany({
+    where: { identifier: { in: identifiers } },
+    include: {
+      creditCardStatements: true
     }
   })
+  const months = sortMonths(rawMonths, identifiers)
 
   return { accounts, months }
 }
