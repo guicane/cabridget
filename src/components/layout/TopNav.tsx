@@ -27,8 +27,8 @@ export function TopNav() {
             <Image src="/logo-mark.png" alt="Cabridget" width={66} height={70} className="w-11 h-12 md:w-[66px] md:h-[70px] object-contain" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <div className="text-xl md:text-[34px] tracking-[0.22em] md:tracking-[0.28em] uppercase leading-none text-foreground">
-              Cabridget
+            <div className="text-xl md:text-[34px] tracking-tight leading-none text-foreground">
+              cabridget
             </div>
             <div className="text-[11px] md:text-xs tracking-[0.18em] uppercase text-muted-foreground">
               Budget Console
