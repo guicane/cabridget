@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { addCreditCard, deleteCreditCard, updateCreditCard } from "@/actions/monthly-bills"
-import { Trash2, Plus, Pencil, Check } from "lucide-react"
+import { addCreditCard, deleteCreditCard, updateCreditCard, toggleCreditCardActive } from "@/actions/monthly-bills"
+import { Trash2, Plus, Pencil, Check, CheckCircle2, Circle } from "lucide-react"
 import type { CreditCard } from "@prisma/client"
 import { useSettings } from "@/components/providers/SettingsProvider"
 
@@ -61,6 +61,7 @@ export function CreditCardsTab({ initialCards }: { initialCards: SerializedCredi
               <thead>
                 <tr className="bg-muted">
                   <th className="p-4 font-semibold text-foreground border-b border-border">Card Name</th>
+                  <th className="p-4 w-24 border-b border-border text-center">Active</th>
                   <th className="p-4 w-24 border-b border-border text-center">Actions</th>
                 </tr>
               </thead>
@@ -81,6 +82,15 @@ export function CreditCardsTab({ initialCards }: { initialCards: SerializedCredi
                         ) : (
                           <div className="px-4 py-4 font-medium text-foreground">{card.name}</div>
                         )}
+                      </td>
+                      <td className="p-4 text-center">
+                        <button
+                          onClick={() => toggleCreditCardActive(card.id, !card.active)}
+                          className={card.active ? "text-primary hover:text-primary/80 transition-colors" : "text-muted-foreground hover:text-foreground transition-colors"}
+                          title={card.active ? "Active — click to archive" : "Archived — click to reactivate"}
+                        >
+                          {card.active ? <CheckCircle2 className="w-5 h-5 mx-auto" /> : <Circle className="w-5 h-5 mx-auto" />}
+                        </button>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-center gap-2">

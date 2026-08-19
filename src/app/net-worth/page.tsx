@@ -10,7 +10,7 @@ export default async function NetWorthPage(props: { searchParams: Promise<{ [key
   const yearStr = searchParams?.year;
   const year = yearStr ? parseInt(yearStr as string, 10) : new Date().getFullYear();
 
-  const { accounts, months } = await getNetWorthData(year)
+  const { accounts, months, creditCards } = await getNetWorthData(year)
 
   const serializedAccounts = accounts.map((acc: any) => ({
     ...acc,
@@ -42,7 +42,7 @@ export default async function NetWorthPage(props: { searchParams: Promise<{ [key
         </div>
       </div>
 
-      <SnapshotGrid accounts={serializedAccounts as any} months={serializedMonths as any} />
+      <SnapshotGrid accounts={serializedAccounts as any} months={serializedMonths as any} creditCards={creditCards} />
     </div>
   )
 }

@@ -33,7 +33,12 @@ export async function getNetWorthData(year: number) {
   })
   const months = sortMonths(rawMonths, identifiers)
 
-  return { accounts, months }
+  const creditCards = await prisma.creditCard.findMany({
+    where: { active: true },
+    orderBy: { name: "asc" }
+  })
+
+  return { accounts, months, creditCards }
 }
 
 import { AccountCategory } from "@prisma/client"
@@ -53,6 +58,14 @@ export async function addInvestmentAccount(formData: FormData) {
 export async function deleteInvestmentAccount(id: string) {
   await prisma.investmentAccount.delete({
     where: { id }
+  })
+  revalidatePath("/net-worth")
+}
+
+export async function toggleInvestmentAccountActive(id: string, active: boolean) {
+  await prisma.investmentAccount.update({
+    where: { id },
+    data: { active }
   })
   revalidatePath("/net-worth")
 }

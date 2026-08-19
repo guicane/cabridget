@@ -365,8 +365,19 @@ export async function deleteCreditCard(id: string) {
   await prisma.creditCard.delete({
     where: { id }
   })
-  
+
   revalidatePath("/monthly-bills", "layout")
+}
+
+export async function toggleCreditCardActive(id: string, active: boolean) {
+  await prisma.creditCard.update({
+    where: { id },
+    data: { active }
+  })
+
+  revalidatePath("/monthly-bills", "layout")
+  revalidatePath("/net-worth", "layout")
+  revalidatePath("/credit-cards", "layout")
 }
 
 export async function updateCreditCard(id: string, field: string, value: string) {

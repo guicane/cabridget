@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { upsertSnapshot, deleteInvestmentAccount } from "@/actions/net-worth"
-import { Trash2 } from "lucide-react"
+import { upsertSnapshot, deleteInvestmentAccount, toggleInvestmentAccountActive } from "@/actions/net-worth"
+import { Trash2, CheckCircle2, Circle } from "lucide-react"
 
 import { useSettings } from "@/components/providers/SettingsProvider"
 import { sumAmounts } from "@/lib/money"
@@ -20,16 +20,22 @@ type Account = {
   id: string
   name: string
   category: string
+  active: boolean
   snapshots: Snapshot[]
+}
+
+type CreditCard = {
+  id: string
+  name: string
 }
 
 type Month = {
   id: string
   identifier: string
-  creditCardStatements: { balance: any }[]
+  creditCardStatements: { balance: any, creditCardId: string }[]
 }
 
-export function SnapshotGrid({ accounts, months }: { accounts: Account[], months: Month[] }) {
+export function SnapshotGrid({ accounts, months, creditCards = [] }: { accounts: Account[], months: Month[], creditCards?: CreditCard[] }) {
   // Use local state to handle optimistic updates
   const [isUpdating, setIsUpdating] = useState<string | null>(null)
   const { currency } = useSettings()
@@ -55,6 +61,20 @@ export function SnapshotGrid({ accounts, months }: { accounts: Account[], months
     const ccDebt = sumAmounts((month?.creditCardStatements || []).map(cc => Number(cc.balance)))
 
     return sumAmounts([assets, -ccDebt])
+  }
+
+  // A month is complete once every active investment has a value entered
+  // for it and every active credit card has a statement entered for it.
+  const isMonthComplete = (monthId: string) => {
+    const activeAccounts = accounts.filter(a => a.active)
+    const missingAccount = activeAccounts.some(a => !a.snapshots.some(s => s.monthId === monthId))
+    if (missingAccount) return false
+
+    const month = months.find(m => m.id === monthId)
+    const statementCardIds = new Set((month?.creditCardStatements || []).map(s => s.creditCardId))
+    const missingCard = creditCards.some(c => !statementCardIds.has(c.id))
+
+    return !missingCard
   }
 
   // Group accounts by category
@@ -88,11 +108,22 @@ export function SnapshotGrid({ accounts, months }: { accounts: Account[], months
           <thead>
             <tr className="bg-muted">
               <th className="p-4 font-semibold text-foreground w-64 border-b border-border">Investment Account</th>
-              {months.map(month => (
-                <th key={month.id} className="p-4 font-semibold text-foreground text-right min-w-[150px] border-b border-border">
-                  {month.identifier}
-                </th>
-              ))}
+              {months.map(month => {
+                const complete = isMonthComplete(month.id)
+                return (
+                  <th key={month.id} className="p-4 font-semibold text-foreground text-right min-w-[150px] border-b border-border">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <span>{month.identifier}</span>
+                      <span
+                        className={complete ? "text-primary" : "text-muted-foreground/50"}
+                        title={complete ? "Complete — every active account and card has a value this month" : "Incomplete — some active account or card is missing a value this month"}
+                      >
+                        {complete ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+                      </span>
+                    </div>
+                  </th>
+                )
+              })}
             </tr>
           </thead>
           
@@ -113,14 +144,23 @@ export function SnapshotGrid({ accounts, months }: { accounts: Account[], months
                 {categoryAccounts.map(account => (
                   <tr key={account.id} className="border-b border-border hover:bg-muted/50 transition-colors group">
                     <td className="p-4 flex items-center justify-between pl-8">
-                      <span className="font-medium text-foreground">{account.name}</span>
-                      <button
-                        onClick={() => deleteInvestmentAccount(account.id)}
-                        className="text-muted-foreground hover:text-negative opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Delete Account"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <span className={account.active ? "font-medium text-foreground" : "font-medium text-muted-foreground"}>{account.name}</span>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => toggleInvestmentAccountActive(account.id, !account.active)}
+                          className={account.active ? "text-primary hover:text-primary/80 p-1" : "text-muted-foreground hover:text-foreground p-1"}
+                          title={account.active ? "Active — click to archive" : "Archived — click to reactivate"}
+                        >
+                          {account.active ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => deleteInvestmentAccount(account.id)}
+                          className="text-muted-foreground hover:text-negative p-1"
+                          title="Delete Account"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                     {months.map(month => {
                       const snapshot = account.snapshots.find(s => s.monthId === month.id)

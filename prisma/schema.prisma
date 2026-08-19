@@ -72,6 +72,7 @@ model MonthlyBill {
 model CreditCard {
   id         String                @id @default(uuid())
   name       String                @unique
+  active     Boolean               @default(true)
   statements CreditCardStatement[]
   createdAt  DateTime              @default(now())
   updatedAt  DateTime              @updatedAt
@@ -106,6 +107,7 @@ model InvestmentAccount {
   id        String               @id @default(uuid())
   name      String               @unique
   category  AccountCategory      @default(Savings)
+  active    Boolean              @default(true)
   snapshots InvestmentSnapshot[]
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
