@@ -1,6 +1,6 @@
 import { getRecurringBills, getMonths, getRecurringIncomes } from "@/actions/monthly-bills"
 import { prisma } from "@/lib/prisma"
-import { MonthlyBillsTabs } from "@/components/monthly-bills/MonthlyBillsTabs"
+import { CashflowSheet } from "@/components/monthly-bills/CashflowSheet"
 import { YearSelector } from "@/components/YearSelector"
 
 export const dynamic = "force-dynamic"
@@ -59,7 +59,8 @@ export default async function MonthlyBillsPage(props: { searchParams: Promise<{ 
 
   const serializedCreditCards = allCreditCards.map((card: any) => ({
     id: card.id,
-    name: card.name
+    name: card.name,
+    active: card.active
   }))
 
   const serializedCreditCardStatements = allCreditCardStatements.map((stmt: any) => ({
@@ -74,15 +75,15 @@ export default async function MonthlyBillsPage(props: { searchParams: Promise<{ 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">Monthly Cashflow</h1>
-          <p className="text-muted-foreground">Track actual monthly bills and manage your templates.</p>
+          <p className="text-muted-foreground">Income, bills, and credit cards for each month — add a row and start typing.</p>
         </div>
         <YearSelector currentYear={year} />
       </div>
 
-      <MonthlyBillsTabs 
-        templates={serializedTemplates} 
-        months={months} 
-        monthlyBills={serializedMonthlyBills}
+      <CashflowSheet
+        templates={serializedTemplates}
+        months={months}
+        bills={serializedMonthlyBills}
         incomeTemplates={serializedIncomeTemplates}
         incomes={serializedIncomes}
         creditCards={serializedCreditCards}
