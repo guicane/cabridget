@@ -3,7 +3,7 @@ name: cabridget
 
 services:
   app:
-    image: guicane/cabridget:0.3.0
+    image: guicane/cabridget:0.4.0
     container_name: cabridget-app
     restart: always
     expose:
