@@ -3,10 +3,13 @@
 import { ensureMonthsForYear, sortMonths } from "./months"
 
 import { prisma } from "@/lib/prisma"
+import { getCurrentHouseholdId } from "@/lib/household"
 import { revalidatePath } from "next/cache"
 
 export async function getRecurringBills() {
+  const householdId = await getCurrentHouseholdId()
   return prisma.recurringBill.findMany({
+    where: { householdId },
     orderBy: [
       { dayOfMonth: { sort: 'asc', nulls: 'last' } },
       { name: 'asc' }
@@ -15,6 +18,7 @@ export async function getRecurringBills() {
 }
 
 export async function addRecurringBill(formData: FormData) {
+  const householdId = await getCurrentHouseholdId()
   const name = formData.get("name") as string
   const company = formData.get("company") as string
   const dayOfMonthStr = formData.get("dayOfMonth") as string
@@ -25,6 +29,7 @@ export async function addRecurringBill(formData: FormData) {
 
   await prisma.recurringBill.create({
     data: {
+      householdId,
       name,
       company: company || null,
       dayOfMonth: isNaN(dayOfMonth as number) ? null : dayOfMonth
@@ -35,28 +40,32 @@ export async function addRecurringBill(formData: FormData) {
 }
 
 export async function deleteRecurringBill(id: string) {
-  await prisma.recurringBill.delete({
-    where: { id }
+  const householdId = await getCurrentHouseholdId()
+  await prisma.recurringBill.deleteMany({
+    where: { id, householdId }
   })
-  
+
   revalidatePath("/monthly-bills", "layout")
 }
 
 export async function updateRecurringBill(id: string, field: string, value: string) {
+  const householdId = await getCurrentHouseholdId()
+  const where = { id, householdId }
+
   if (field === 'dayOfMonth') {
     const dayOfMonth = parseInt(value, 10)
-    await prisma.recurringBill.update({
-      where: { id },
+    await prisma.recurringBill.updateMany({
+      where,
       data: { dayOfMonth: isNaN(dayOfMonth) ? null : dayOfMonth }
     })
   } else if (field === 'name') {
-    await prisma.recurringBill.update({
-      where: { id },
+    await prisma.recurringBill.updateMany({
+      where,
       data: { name: value }
     })
   } else if (field === 'company') {
-    await prisma.recurringBill.update({
-      where: { id },
+    await prisma.recurringBill.updateMany({
+      where,
       data: { company: value || null }
     })
   }
@@ -65,16 +74,18 @@ export async function updateRecurringBill(id: string, field: string, value: stri
 }
 
 export async function getMonths(year: number) {
+  const householdId = await getCurrentHouseholdId()
   const identifiers = await ensureMonthsForYear(year)
   const rawMonths = await prisma.month.findMany({
-    where: { identifier: { in: identifiers } }
+    where: { householdId, identifier: { in: identifiers } }
   })
   return sortMonths(rawMonths, identifiers)
 }
 
 export async function getMonthlyBills(monthId: string) {
+  const householdId = await getCurrentHouseholdId()
   return prisma.monthlyBill.findMany({
-    where: { monthId },
+    where: { monthId, householdId },
     orderBy: [
       { dayOfMonth: { sort: 'asc', nulls: 'last' } },
       { amount: 'desc' }
@@ -83,6 +94,7 @@ export async function getMonthlyBills(monthId: string) {
 }
 
 export async function addMonthlyBill(formData: FormData) {
+  const householdId = await getCurrentHouseholdId()
   const monthId = formData.get("monthId") as string
   const name = formData.get("name") as string
   const company = formData.get("company") as string
@@ -98,6 +110,7 @@ export async function addMonthlyBill(formData: FormData) {
 
   await prisma.monthlyBill.create({
     data: {
+      householdId,
       monthId,
       name,
       company: company || null,
@@ -110,16 +123,18 @@ export async function addMonthlyBill(formData: FormData) {
 }
 
 export async function deleteMonthlyBill(id: string) {
-  await prisma.monthlyBill.delete({
-    where: { id }
+  const householdId = await getCurrentHouseholdId()
+  await prisma.monthlyBill.deleteMany({
+    where: { id, householdId }
   })
-  
+
   revalidatePath("/monthly-bills", "layout")
 }
 
 export async function deleteMonthlyBillSeries(name: string, company: string | null) {
+  const householdId = await getCurrentHouseholdId()
   await prisma.monthlyBill.deleteMany({
-    where: { name, company }
+    where: { householdId, name, company }
   })
 
   revalidatePath("/monthly-bills", "layout")
@@ -131,13 +146,15 @@ export async function deleteMonthlyBillSeries(name: string, company: string | nu
 // template — renaming only the template would silently orphan existing
 // entries into a separate, stale-named row).
 export async function renameBillSeries(oldName: string, oldCompany: string | null, newName: string, newCompany: string | null) {
-  const template = await prisma.recurringBill.findFirst({ where: { name: oldName, company: oldCompany } })
+  const householdId = await getCurrentHouseholdId()
+
+  const template = await prisma.recurringBill.findFirst({ where: { householdId, name: oldName, company: oldCompany } })
   if (template) {
     await prisma.recurringBill.update({ where: { id: template.id }, data: { name: newName, company: newCompany } })
   }
 
   await prisma.monthlyBill.updateMany({
-    where: { name: oldName, company: oldCompany },
+    where: { householdId, name: oldName, company: oldCompany },
     data: { name: newName, company: newCompany }
   })
 
@@ -145,35 +162,26 @@ export async function renameBillSeries(oldName: string, oldCompany: string | nul
 }
 
 export async function updateMonthlyBill(id: string, field: string, value: string | boolean) {
+  const householdId = await getCurrentHouseholdId()
+  const where = { id, householdId }
+
   if (field === 'amount') {
     const amount = parseFloat(value as string)
     if (!isNaN(amount)) {
-      await prisma.monthlyBill.update({
-        where: { id },
-        data: { amount }
-      })
+      await prisma.monthlyBill.updateMany({ where, data: { amount } })
     }
   } else if (field === 'dayOfMonth') {
     const dayOfMonth = parseInt(value as string, 10)
-    await prisma.monthlyBill.update({
-      where: { id },
+    await prisma.monthlyBill.updateMany({
+      where,
       data: { dayOfMonth: isNaN(dayOfMonth) ? null : dayOfMonth }
     })
   } else if (field === 'name') {
-    await prisma.monthlyBill.update({
-      where: { id },
-      data: { name: value as string }
-    })
+    await prisma.monthlyBill.updateMany({ where, data: { name: value as string } })
   } else if (field === 'company') {
-    await prisma.monthlyBill.update({
-      where: { id },
-      data: { company: (value as string) || null }
-    })
+    await prisma.monthlyBill.updateMany({ where, data: { company: (value as string) || null } })
   } else if (field === 'isPaid') {
-    await prisma.monthlyBill.update({
-      where: { id },
-      data: { isPaid: value as boolean }
-    })
+    await prisma.monthlyBill.updateMany({ where, data: { isPaid: value as boolean } })
   }
 
   revalidatePath("/monthly-bills", "layout")
@@ -183,11 +191,12 @@ export async function updateMonthlyBill(id: string, field: string, value: string
 // value in any cell works immediately — no separate "sync from templates"
 // step needed first.
 export async function upsertMonthlyBillEntry(monthId: string, name: string, company: string | null, amountStr: string) {
+  const householdId = await getCurrentHouseholdId()
   const amount = parseFloat(amountStr)
   const isInvalid = !amountStr || isNaN(amount)
 
   const existing = await prisma.monthlyBill.findFirst({
-    where: { monthId, name, company }
+    where: { householdId, monthId, name, company }
   })
 
   if (isInvalid) {
@@ -195,14 +204,16 @@ export async function upsertMonthlyBillEntry(monthId: string, name: string, comp
   } else if (existing) {
     await prisma.monthlyBill.update({ where: { id: existing.id }, data: { amount } })
   } else {
-    await prisma.monthlyBill.create({ data: { monthId, name, company, amount } })
+    await prisma.monthlyBill.create({ data: { householdId, monthId, name, company, amount } })
   }
 
   revalidatePath("/monthly-bills", "layout")
 }
 
 export async function getRecurringIncomes() {
+  const householdId = await getCurrentHouseholdId()
   return prisma.recurringIncome.findMany({
+    where: { householdId },
     orderBy: [
       { source: 'asc' }
     ]
@@ -210,31 +221,32 @@ export async function getRecurringIncomes() {
 }
 
 export async function addRecurringIncome(formData: FormData) {
+  const householdId = await getCurrentHouseholdId()
   const source = formData.get("source") as string
 
   if (!source) return
 
   await prisma.recurringIncome.create({
-    data: {
-      source
-    }
+    data: { householdId, source }
   })
 
   revalidatePath("/monthly-bills", "layout")
 }
 
 export async function deleteRecurringIncome(id: string) {
-  await prisma.recurringIncome.delete({
-    where: { id }
+  const householdId = await getCurrentHouseholdId()
+  await prisma.recurringIncome.deleteMany({
+    where: { id, householdId }
   })
-  
+
   revalidatePath("/monthly-bills", "layout")
 }
 
 export async function updateRecurringIncome(id: string, field: string, value: string) {
+  const householdId = await getCurrentHouseholdId()
   if (field === 'source') {
-    await prisma.recurringIncome.update({
-      where: { id },
+    await prisma.recurringIncome.updateMany({
+      where: { id, householdId },
       data: { source: value }
     })
   }
@@ -243,8 +255,9 @@ export async function updateRecurringIncome(id: string, field: string, value: st
 }
 
 export async function getIncomes(monthId: string) {
+  const householdId = await getCurrentHouseholdId()
   return prisma.income.findMany({
-    where: { monthId },
+    where: { monthId, householdId },
     orderBy: [
       { amount: 'desc' }
     ]
@@ -252,6 +265,7 @@ export async function getIncomes(monthId: string) {
 }
 
 export async function addIncome(formData: FormData) {
+  const householdId = await getCurrentHouseholdId()
   const monthId = formData.get("monthId") as string
   const source = formData.get("source") as string
   const amountStr = formData.get("amount") as string
@@ -263,6 +277,7 @@ export async function addIncome(formData: FormData) {
 
   await prisma.income.create({
     data: {
+      householdId,
       monthId,
       source,
       amount,
@@ -274,8 +289,9 @@ export async function addIncome(formData: FormData) {
 }
 
 export async function deleteIncomeSeries(source: string) {
+  const householdId = await getCurrentHouseholdId()
   await prisma.income.deleteMany({
-    where: { source }
+    where: { householdId, source }
   })
 
   revalidatePath("/monthly-bills", "layout")
@@ -283,13 +299,15 @@ export async function deleteIncomeSeries(source: string) {
 
 // See renameBillSeries — same reasoning, for income.
 export async function renameIncomeSeries(oldSource: string, newSource: string) {
-  const template = await prisma.recurringIncome.findFirst({ where: { source: oldSource } })
+  const householdId = await getCurrentHouseholdId()
+
+  const template = await prisma.recurringIncome.findFirst({ where: { householdId, source: oldSource } })
   if (template) {
     await prisma.recurringIncome.update({ where: { id: template.id }, data: { source: newSource } })
   }
 
   await prisma.income.updateMany({
-    where: { source: oldSource },
+    where: { householdId, source: oldSource },
     data: { source: newSource }
   })
 
@@ -297,24 +315,18 @@ export async function renameIncomeSeries(oldSource: string, newSource: string) {
 }
 
 export async function updateIncome(id: string, field: string, value: string | boolean) {
+  const householdId = await getCurrentHouseholdId()
+  const where = { id, householdId }
+
   if (field === 'amount') {
     const amount = parseFloat(value as string)
     if (!isNaN(amount)) {
-      await prisma.income.update({
-        where: { id },
-        data: { amount }
-      })
+      await prisma.income.updateMany({ where, data: { amount } })
     }
   } else if (field === 'source') {
-    await prisma.income.update({
-      where: { id },
-      data: { source: value as string }
-    })
+    await prisma.income.updateMany({ where, data: { source: value as string } })
   } else if (field === 'isPaid') {
-    await prisma.income.update({
-      where: { id },
-      data: { isPaid: value as boolean }
-    })
+    await prisma.income.updateMany({ where, data: { isPaid: value as boolean } })
   }
 
   revalidatePath("/monthly-bills", "layout")
@@ -323,11 +335,12 @@ export async function updateIncome(id: string, field: string, value: string | bo
 // Upserts an income amount for one row/month cell directly, mirroring
 // upsertMonthlyBillEntry above.
 export async function upsertIncomeEntry(monthId: string, source: string, amountStr: string) {
+  const householdId = await getCurrentHouseholdId()
   const amount = parseFloat(amountStr)
   const isInvalid = !amountStr || isNaN(amount)
 
   const existing = await prisma.income.findFirst({
-    where: { monthId, source }
+    where: { householdId, monthId, source }
   })
 
   if (isInvalid) {
@@ -335,14 +348,16 @@ export async function upsertIncomeEntry(monthId: string, source: string, amountS
   } else if (existing) {
     await prisma.income.update({ where: { id: existing.id }, data: { amount } })
   } else {
-    await prisma.income.create({ data: { monthId, source, amount } })
+    await prisma.income.create({ data: { householdId, monthId, source, amount } })
   }
 
   revalidatePath("/monthly-bills", "layout")
 }
 
 export async function getCreditCards() {
+  const householdId = await getCurrentHouseholdId()
   return prisma.creditCard.findMany({
+    where: { householdId },
     orderBy: [
       { name: 'asc' }
     ]
@@ -350,28 +365,31 @@ export async function getCreditCards() {
 }
 
 export async function addCreditCard(formData: FormData) {
+  const householdId = await getCurrentHouseholdId()
   const name = formData.get("name") as string
 
   if (!name) return
 
   await prisma.creditCard.create({
-    data: { name }
+    data: { householdId, name }
   })
 
   revalidatePath("/monthly-bills", "layout")
 }
 
 export async function deleteCreditCard(id: string) {
-  await prisma.creditCard.delete({
-    where: { id }
+  const householdId = await getCurrentHouseholdId()
+  await prisma.creditCard.deleteMany({
+    where: { id, householdId }
   })
 
   revalidatePath("/monthly-bills", "layout")
 }
 
 export async function toggleCreditCardActive(id: string, active: boolean) {
-  await prisma.creditCard.update({
-    where: { id },
+  const householdId = await getCurrentHouseholdId()
+  await prisma.creditCard.updateMany({
+    where: { id, householdId },
     data: { active }
   })
 
@@ -380,9 +398,10 @@ export async function toggleCreditCardActive(id: string, active: boolean) {
 }
 
 export async function updateCreditCard(id: string, field: string, value: string) {
+  const householdId = await getCurrentHouseholdId()
   if (field === 'name') {
-    await prisma.creditCard.update({
-      where: { id },
+    await prisma.creditCard.updateMany({
+      where: { id, householdId },
       data: { name: value }
     })
   }
@@ -391,16 +410,21 @@ export async function updateCreditCard(id: string, field: string, value: string)
 }
 
 export async function deleteCreditCardStatementSeries(creditCardId: string) {
+  const householdId = await getCurrentHouseholdId()
   await prisma.creditCardStatement.deleteMany({
-    where: { creditCardId }
+    where: { creditCardId, householdId }
   })
 
   revalidatePath("/monthly-bills", "layout")
 }
 
 export async function upsertCreditCardStatement(creditCardId: string, monthId: string, value: string) {
+  const householdId = await getCurrentHouseholdId()
   const balance = parseFloat(value)
   if (isNaN(balance)) return
+
+  const card = await prisma.creditCard.findFirst({ where: { id: creditCardId, householdId } })
+  if (!card) return
 
   const existing = await prisma.creditCardStatement.findUnique({
     where: { creditCardId_monthId: { creditCardId, monthId } }
@@ -413,12 +437,10 @@ export async function upsertCreditCardStatement(creditCardId: string, monthId: s
     })
   } else {
     await prisma.creditCardStatement.create({
-      data: { creditCardId, monthId, balance }
+      data: { householdId, creditCardId, monthId, balance }
     })
   }
 
   revalidatePath("/monthly-bills", "layout")
   revalidatePath("/net-worth", "layout")
 }
-
-

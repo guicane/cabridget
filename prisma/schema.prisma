@@ -11,18 +11,55 @@ datasource db {
 }
 
 // ---------------------------------------------------------
+// Household
+//
+// The actual owner of all financial data. Every table below is scoped
+// to a household directly (not just via a parent join) so tenant
+// isolation is a property of every query, not something that can be
+// silently lost by forgetting to join through a parent record.
+//
+// There is no User model yet — a household today has exactly one
+// implicit member and getCurrentHouseholdId() (src/lib/household.ts)
+// stands in for a real session. Multi-user households and real auth
+// are meant to be additive later: a User model that belongs to a
+// Household, not a change to how financial data is scoped.
+// ---------------------------------------------------------
+
+model Household {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  months               Month[]
+  incomes              Income[]
+  recurringIncomes     RecurringIncome[]
+  recurringBills       RecurringBill[]
+  monthlyBills         MonthlyBill[]
+  creditCards          CreditCard[]
+  creditCardStatements CreditCardStatement[]
+  investmentAccounts   InvestmentAccount[]
+  investmentSnapshots  InvestmentSnapshot[]
+  settings             Settings?
+}
+
+// ---------------------------------------------------------
 // Month
 // ---------------------------------------------------------
 
 model Month {
   id                   String                @id @default(uuid())
-  identifier           String                @unique // e.g., "June 2026"
+  householdId          String
+  household            Household             @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  identifier           String // e.g., "June 2026"
   incomes              Income[]
   monthlyBills         MonthlyBill[]
   creditCardStatements CreditCardStatement[]
   investmentSnapshots  InvestmentSnapshot[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
+
+  @@unique([householdId, identifier])
 }
 
 // ---------------------------------------------------------
@@ -30,56 +67,70 @@ model Month {
 // ---------------------------------------------------------
 
 model Income {
-  id        String   @id @default(uuid())
-  monthId   String
-  month     Month    @relation(fields: [monthId], references: [id], onDelete: Cascade)
-  source    String
-  amount    Decimal  @db.Decimal(12, 2)
-  isPaid    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(uuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  monthId     String
+  month       Month     @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  source      String
+  amount      Decimal   @db.Decimal(12, 2)
+  isPaid      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model RecurringIncome {
-  id        String   @id @default(uuid())
-  source    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(uuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  source      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model RecurringBill {
-  id         String   @id @default(uuid())
-  name       String
-  company    String?
-  dayOfMonth Int?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String    @id @default(uuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name        String
+  company     String?
+  dayOfMonth  Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model MonthlyBill {
-  id         String   @id @default(uuid())
-  monthId    String
-  month      Month    @relation(fields: [monthId], references: [id], onDelete: Cascade)
-  name       String
-  company    String?
-  amount     Decimal  @db.Decimal(12, 2)
-  dayOfMonth Int?
-  isPaid     Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String    @id @default(uuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  monthId     String
+  month       Month     @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  name        String
+  company     String?
+  amount      Decimal   @db.Decimal(12, 2)
+  dayOfMonth  Int?
+  isPaid      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model CreditCard {
-  id         String                @id @default(uuid())
-  name       String                @unique
-  active     Boolean               @default(true)
-  statements CreditCardStatement[]
-  createdAt  DateTime              @default(now())
-  updatedAt  DateTime              @updatedAt
+  id          String                @id @default(uuid())
+  householdId String
+  household   Household             @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name        String
+  active      Boolean               @default(true)
+  statements  CreditCardStatement[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@unique([householdId, name])
 }
 
 model CreditCardStatement {
   id           String     @id @default(uuid())
+  householdId  String
+  household    Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
   creditCardId String
   creditCard   CreditCard @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
   monthId      String
@@ -104,24 +155,30 @@ enum AccountCategory {
 }
 
 model InvestmentAccount {
-  id        String               @id @default(uuid())
-  name      String               @unique
-  category  AccountCategory      @default(Savings)
-  active    Boolean              @default(true)
-  snapshots InvestmentSnapshot[]
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+  id          String               @id @default(uuid())
+  householdId String
+  household   Household            @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name        String
+  category    AccountCategory      @default(Savings)
+  active      Boolean              @default(true)
+  snapshots   InvestmentSnapshot[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@unique([householdId, name])
 }
 
 model InvestmentSnapshot {
-  id        String            @id @default(uuid())
-  accountId String
-  account   InvestmentAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  monthId   String
-  month     Month             @relation(fields: [monthId], references: [id], onDelete: Cascade)
-  balance   Decimal           @db.Decimal(12, 2)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  id          String            @id @default(uuid())
+  householdId String
+  household   Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     InvestmentAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  monthId     String
+  month       Month             @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  balance     Decimal           @db.Decimal(12, 2)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@unique([accountId, monthId])
 }
@@ -131,6 +188,8 @@ model InvestmentSnapshot {
 // ---------------------------------------------------------
 
 model Settings {
-  id       String @id @default("global")
-  currency String @default("$")
+  id          String    @id @default(uuid())
+  householdId String    @unique
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  currency    String    @default("$")
 }

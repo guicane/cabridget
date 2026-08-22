@@ -1,5 +1,6 @@
 import { getRecurringBills, getMonths, getRecurringIncomes } from "@/actions/monthly-bills"
 import { prisma } from "@/lib/prisma"
+import { getCurrentHouseholdId } from "@/lib/household"
 import { CashflowSheet } from "@/components/monthly-bills/CashflowSheet"
 import { YearSelector } from "@/components/YearSelector"
 
@@ -10,11 +11,14 @@ export default async function MonthlyBillsPage(props: { searchParams: Promise<{ 
   const yearStr = searchParams?.year;
   const year = yearStr ? parseInt(yearStr as string, 10) : new Date().getFullYear();
 
+  const householdId = await getCurrentHouseholdId()
+
   const initialBills = await getRecurringBills()
   const initialIncomes = await getRecurringIncomes()
   const months = await getMonths(year)
 
   const allMonthlyBills = await prisma.monthlyBill.findMany({
+    where: { householdId },
     orderBy: [
       { dayOfMonth: { sort: 'asc', nulls: 'last' } },
       { amount: 'desc' }
@@ -22,18 +26,22 @@ export default async function MonthlyBillsPage(props: { searchParams: Promise<{ 
   })
 
   const allIncomes = await prisma.income.findMany({
+    where: { householdId },
     orderBy: [
       { amount: 'desc' }
     ]
   })
 
   const allCreditCards = await prisma.creditCard.findMany({
+    where: { householdId },
     orderBy: [
       { name: 'asc' }
     ]
   })
 
-  const allCreditCardStatements = await prisma.creditCardStatement.findMany()
+  const allCreditCardStatements = await prisma.creditCardStatement.findMany({
+    where: { householdId }
+  })
 
   // Serialize Decimal to number for the client component
   // Defensively remove 'amount' from templates in case it lingers in cache
