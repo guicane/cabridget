@@ -4,9 +4,7 @@ import { useState } from "react"
 import { Upload } from "lucide-react"
 import { ImportStatementModal } from "./ImportStatementModal"
 
-type MerchantMapping = { id: string, pattern: string, billName: string, billCompany: string | null }
-
-export function ImportStatementButton({ initialMappings }: { initialMappings: MerchantMapping[] }) {
+export function ImportStatementButton() {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
@@ -18,7 +16,7 @@ export function ImportStatementButton({ initialMappings }: { initialMappings: Me
         <Upload className="w-4 h-4" />
         Import Statement
       </button>
-      {isOpen && <ImportStatementModal initialMappings={initialMappings} onClose={() => setIsOpen(false)} />}
+      {isOpen && <ImportStatementModal onClose={() => setIsOpen(false)} />}
     </>
   )
 }

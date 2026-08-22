@@ -1,25 +1,13 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { X, Upload, Plus, Trash2, Loader2, CheckCircle2, Circle } from "lucide-react"
-import {
-  addMerchantMapping, deleteMerchantMapping,
-  previewStatementImport, commitStatementImport,
-  type MatchedRow, type ImportPreview
-} from "@/actions/statement-import"
+import Link from "next/link"
+import { X, Upload, Loader2, CheckCircle2, Circle } from "lucide-react"
+import { previewStatementImport, commitStatementImport, type ImportPreview } from "@/actions/statement-import"
 import { useSettings } from "@/components/providers/SettingsProvider"
 
-type MerchantMapping = { id: string, pattern: string, billName: string, billCompany: string | null }
-
-export function ImportStatementModal({
-  initialMappings,
-  onClose
-}: {
-  initialMappings: MerchantMapping[]
-  onClose: () => void
-}) {
+export function ImportStatementModal({ onClose }: { onClose: () => void }) {
   const { currency } = useSettings()
-  const [mappings, setMappings] = useState(initialMappings)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [included, setIncluded] = useState<Set<number>>(new Set())
   const [error, setError] = useState<string | null>(null)
@@ -27,20 +15,6 @@ export function ImportStatementModal({
   const [isImporting, setIsImporting] = useState(false)
   const [done, setDone] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const formRef = useRef<HTMLFormElement>(null)
-
-  const handleAddMapping = async (formData: FormData) => {
-    const mapping = await addMerchantMapping(formData)
-    if (mapping) {
-      setMappings(prev => [...prev.filter(m => m.pattern !== mapping.pattern), mapping].sort((a, b) => a.pattern.localeCompare(b.pattern)))
-    }
-    formRef.current?.reset()
-  }
-
-  const handleDeleteMapping = async (id: string) => {
-    setMappings(prev => prev.filter(m => m.id !== id))
-    await deleteMerchantMapping(id)
-  }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -132,7 +106,9 @@ export function ImportStatementModal({
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                     Not matched — {preview.unmatched.length} merchant{preview.unmatched.length === 1 ? "" : "s"}
                   </h3>
-                  <p className="text-xs text-muted-foreground mb-3">Add a mapping below (with the exact or a distinctive part of the merchant text) and re-upload to include these.</p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Add a mapping in <Link href="/settings" className="text-primary hover:underline">Settings</Link> and re-upload to include these.
+                  </p>
                   <div className="space-y-1 text-sm">
                     {preview.unmatched.map((row, i) => (
                       <div key={i} className="flex items-center justify-between p-2 text-muted-foreground">
@@ -159,56 +135,17 @@ export function ImportStatementModal({
               </div>
             </>
           ) : (
-            <>
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  Merchant Mappings
-                </h3>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Map text that appears on your statement to a bill name, so imports know what each transaction is.
-                </p>
-
-                <div className="space-y-1 mb-4">
-                  {mappings.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No mappings yet.</p>
-                  ) : (
-                    mappings.map(m => (
-                      <div key={m.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 group">
-                        <div className="text-sm">
-                          <span className="text-foreground font-medium">{m.pattern}</span>
-                          <span className="text-muted-foreground"> → {m.billName}{m.billCompany ? ` (${m.billCompany})` : ""}</span>
-                        </div>
-                        <button onClick={() => handleDeleteMapping(m.id)} className="text-muted-foreground hover:text-negative opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <form ref={formRef} action={handleAddMapping} className="flex flex-col md:flex-row gap-2">
-                  <input name="pattern" placeholder="Statement text (e.g. NETFLIX.COM)" required
-                    className="flex-1 px-3 py-2 bg-input border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50" />
-                  <input name="billName" placeholder="Bill name (e.g. Netflix)" required
-                    className="flex-1 px-3 py-2 bg-input border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50" />
-                  <button type="submit" className="px-3 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm flex items-center justify-center gap-1">
-                    <Plus className="w-4 h-4" /> Add
-                  </button>
-                </form>
-              </div>
-
-              <div className="border-t border-border pt-6">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  Upload Statement (CSV)
-                </h3>
-                <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-[18px] p-8 cursor-pointer hover:border-primary transition-colors">
-                  {isParsing ? <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" /> : <Upload className="w-6 h-6 text-muted-foreground" />}
-                  <span className="text-sm text-muted-foreground">{isParsing ? "Parsing..." : "Click to choose a .csv file"}</span>
-                  <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFileChange} disabled={isParsing} />
-                </label>
-                {error && <p className="text-negative text-sm mt-3">{error}</p>}
-              </div>
-            </>
+            <div>
+              <p className="text-xs text-muted-foreground mb-4">
+                Matches transactions against the merchant mappings configured in <Link href="/settings" className="text-primary hover:underline">Settings</Link>.
+              </p>
+              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-[18px] p-8 cursor-pointer hover:border-primary transition-colors">
+                {isParsing ? <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" /> : <Upload className="w-6 h-6 text-muted-foreground" />}
+                <span className="text-sm text-muted-foreground">{isParsing ? "Parsing..." : "Click to choose a .csv file"}</span>
+                <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFileChange} disabled={isParsing} />
+              </label>
+              {error && <p className="text-negative text-sm mt-3">{error}</p>}
+            </div>
           )}
         </div>
       </div>

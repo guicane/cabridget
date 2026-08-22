@@ -1,5 +1,4 @@
 import { getRecurringBills, getMonths, getRecurringIncomes } from "@/actions/monthly-bills"
-import { getMerchantMappings } from "@/actions/statement-import"
 import { prisma } from "@/lib/prisma"
 import { getCurrentHouseholdId } from "@/lib/household"
 import { CashflowSheet } from "@/components/monthly-bills/CashflowSheet"
@@ -18,7 +17,6 @@ export default async function MonthlyBillsPage(props: { searchParams: Promise<{ 
   const initialBills = await getRecurringBills()
   const initialIncomes = await getRecurringIncomes()
   const months = await getMonths(year)
-  const merchantMappings = await getMerchantMappings()
 
   const allMonthlyBills = await prisma.monthlyBill.findMany({
     where: { householdId },
@@ -89,7 +87,7 @@ export default async function MonthlyBillsPage(props: { searchParams: Promise<{ 
           <p className="text-muted-foreground">Income, bills, and credit cards for each month — add a row and start typing.</p>
         </div>
         <div className="flex items-center gap-3">
-          <ImportStatementButton initialMappings={merchantMappings} />
+          <ImportStatementButton />
           <YearSelector currentYear={year} />
         </div>
       </div>
