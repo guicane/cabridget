@@ -7,6 +7,7 @@
 // CSV. Expect to extend DATE_PATTERNS / the amount heuristic below once
 // tested against real statements from each bank.
 
+import "./dommatrix-polyfill"
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import path from "path"
 import type { ParsedTransaction, CsvParseResult } from "./statement-csv"
