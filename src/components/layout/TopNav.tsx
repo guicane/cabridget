@@ -22,7 +22,7 @@ export function TopNav() {
       <header className="flex items-center justify-between gap-6 mb-6 md:mb-9">
         <div className="flex items-center gap-4 md:gap-[22px]">
           <div className="w-14 h-14 md:w-[84px] md:h-[84px] rounded-2xl md:rounded-[20px] bg-[#08070c] border border-border grid place-items-center overflow-hidden shrink-0">
-            <Image src="/logo-mark.png" alt="Cabridget" width={66} height={70} className="w-11 h-12 md:w-[66px] md:h-[70px] object-contain" />
+            <Image src="/logo-mark.png" alt="Cabridget" width={579} height={658} className="w-9 h-auto md:w-[52px] object-contain" />
           </div>
           <div className="flex flex-col gap-1.5">
             <div className="text-xl md:text-[34px] tracking-tight leading-none text-foreground">
