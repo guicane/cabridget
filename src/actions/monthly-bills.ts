@@ -377,7 +377,6 @@ export async function toggleCreditCardActive(id: string, active: boolean) {
 
   revalidatePath("/monthly-bills", "layout")
   revalidatePath("/net-worth", "layout")
-  revalidatePath("/credit-cards", "layout")
 }
 
 export async function updateCreditCard(id: string, field: string, value: string) {
@@ -395,8 +394,31 @@ export async function deleteCreditCardStatementSeries(creditCardId: string) {
   await prisma.creditCardStatement.deleteMany({
     where: { creditCardId }
   })
-  
+
   revalidatePath("/monthly-bills", "layout")
+}
+
+export async function upsertCreditCardStatement(creditCardId: string, monthId: string, value: string) {
+  const balance = parseFloat(value)
+  if (isNaN(balance)) return
+
+  const existing = await prisma.creditCardStatement.findUnique({
+    where: { creditCardId_monthId: { creditCardId, monthId } }
+  })
+
+  if (existing) {
+    await prisma.creditCardStatement.update({
+      where: { id: existing.id },
+      data: { balance }
+    })
+  } else {
+    await prisma.creditCardStatement.create({
+      data: { creditCardId, monthId, balance }
+    })
+  }
+
+  revalidatePath("/monthly-bills", "layout")
+  revalidatePath("/net-worth", "layout")
 }
 
 

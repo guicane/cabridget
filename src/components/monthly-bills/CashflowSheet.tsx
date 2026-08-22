@@ -5,8 +5,8 @@ import {
   addMonthlyBill, upsertMonthlyBillEntry, deleteMonthlyBillSeries, renameBillSeries, updateMonthlyBill,
   addRecurringIncome, upsertIncomeEntry, deleteIncomeSeries, renameIncomeSeries, updateIncome,
   addCreditCard, deleteCreditCardStatementSeries, updateCreditCard, toggleCreditCardActive,
+  upsertCreditCardStatement,
 } from "@/actions/monthly-bills"
-import { upsertCreditCardStatement } from "@/actions/credit-cards"
 import { CheckCircle2, Circle, Pencil, Check, Plus, Trash2 } from "lucide-react"
 import type { Month } from "@prisma/client"
 import { useSettings } from "@/components/providers/SettingsProvider"

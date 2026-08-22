@@ -1,24 +1,18 @@
-import { Wallet, LineChart, Receipt, ArrowUpRight } from "lucide-react"
+import { LineChart, Receipt, ArrowUpRight } from "lucide-react"
 import Link from "next/link"
 
 const cards = [
   {
-    href: "/cash-flow",
-    icon: Wallet,
-    title: "Cash Flow",
-    description: "Track your macro-level monthly income and major expenses without sweating the small stuff.",
+    href: "/monthly-bills",
+    icon: Receipt,
+    title: "Monthly Cashflow",
+    description: "Income, bills, and credit cards for each month, side by side.",
   },
   {
     href: "/net-worth",
     icon: LineChart,
     title: "Net Worth",
     description: "Log monthly snapshots of your investment accounts to see your long-term growth.",
-  },
-  {
-    href: "/monthly-bills",
-    icon: Receipt,
-    title: "Monthly Cashflow",
-    description: "Track your expected recurring bills and baseline expenses templates.",
   },
 ] as const
 

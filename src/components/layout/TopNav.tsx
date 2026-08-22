@@ -9,9 +9,7 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle"
 
 const navItems = [
   { name: "Dashboard", href: "/" },
-  { name: "Cash Flow", href: "/cash-flow" },
   { name: "Monthly Cashflow", href: "/monthly-bills" },
-  { name: "Credit Cards", href: "/credit-cards" },
   { name: "Net Worth", href: "/net-worth" },
   { name: "Settings", href: "/settings" },
 ]
