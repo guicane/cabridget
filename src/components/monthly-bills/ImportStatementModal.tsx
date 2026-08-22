@@ -150,8 +150,8 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
               </p>
               <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-[18px] p-8 cursor-pointer hover:border-primary transition-colors">
                 {isParsing ? <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" /> : <Upload className="w-6 h-6 text-muted-foreground" />}
-                <span className="text-sm text-muted-foreground">{isParsing ? "Parsing..." : "Click to choose a .csv file"}</span>
-                <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFileChange} disabled={isParsing} />
+                <span className="text-sm text-muted-foreground">{isParsing ? "Parsing..." : "Click to choose a .csv or .pdf file"}</span>
+                <input ref={fileInputRef} type="file" accept=".csv,text/csv,.pdf,application/pdf" className="hidden" onChange={handleFileChange} disabled={isParsing} />
               </label>
               {error && <p className="text-negative text-sm mt-3">{error}</p>}
             </div>

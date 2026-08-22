@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { getCurrentHouseholdId } from "@/lib/household"
 import { parseStatementCsv, matchTransactions, type MatchedGroup, type UnmatchedGroup } from "@/lib/statement-csv"
+import { parseStatementPdf } from "@/lib/statement-pdf"
 import { ensureMonthsForYear } from "./months"
 import { MerchantMappingType } from "@prisma/client"
 import { revalidatePath } from "next/cache"
@@ -53,8 +54,10 @@ export async function previewStatementImport(formData: FormData): Promise<Import
   const file = formData.get("file") as File | null
   if (!file || file.size === 0) return { error: "No file provided." }
 
-  const text = await file.text()
-  const result = parseStatementCsv(text)
+  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+  const result = isPdf
+    ? await parseStatementPdf(Buffer.from(await file.arrayBuffer()))
+    : parseStatementCsv(await file.text())
   if (!result.ok) return { error: result.error }
 
   const mappings = await prisma.merchantMapping.findMany({ where: { householdId } })
