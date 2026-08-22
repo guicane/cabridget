@@ -5,6 +5,7 @@ import Link from "next/link"
 import { X, Upload, Loader2, CheckCircle2, Circle } from "lucide-react"
 import { previewStatementImport, commitStatementImport, type ImportPreview } from "@/actions/statement-import"
 import { useSettings } from "@/components/providers/SettingsProvider"
+import { cn } from "@/lib/utils"
 
 export function ImportStatementModal({ onClose }: { onClose: () => void }) {
   const { currency } = useSettings()
@@ -68,7 +69,7 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
           {done !== null ? (
             <div className="text-center py-8">
               <CheckCircle2 className="w-10 h-10 text-primary mx-auto mb-3" />
-              <p className="text-foreground font-medium">Imported {done} bill{done === 1 ? "" : "s"}.</p>
+              <p className="text-foreground font-medium">Imported {done} item{done === 1 ? "" : "s"}.</p>
               <button onClick={onClose} className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm">
                 Done
               </button>
@@ -77,7 +78,7 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
             <>
               <div>
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  Matched — {preview.matched.length} bill{preview.matched.length === 1 ? "" : "s"} detected
+                  Matched — {preview.matched.length} item{preview.matched.length === 1 ? "" : "s"} detected
                 </h3>
                 {preview.matched.length === 0 ? (
                   <p className="text-muted-foreground text-sm">No transactions matched a known merchant.</p>
@@ -90,8 +91,14 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
                         className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
                       >
                         {included.has(i) ? <CheckCircle2 className="w-5 h-5 text-primary shrink-0" /> : <Circle className="w-5 h-5 text-muted-foreground shrink-0" />}
+                        <span className={cn(
+                          "text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
+                          row.kind === "Income" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                        )}>
+                          {row.kind}
+                        </span>
                         <div className="flex-1 min-w-0">
-                          <div className="text-foreground font-medium">{row.billName}{row.billCompany ? ` (${row.billCompany})` : ""}</div>
+                          <div className="text-foreground font-medium">{row.targetName}{row.targetCompany ? ` (${row.targetCompany})` : ""}</div>
                           <div className="text-xs text-muted-foreground">{row.monthIdentifier} · {row.transactionCount} transaction{row.transactionCount === 1 ? "" : "s"}</div>
                         </div>
                         <div className="text-foreground font-medium">{currency}{row.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
@@ -112,7 +119,9 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
                   <div className="space-y-1 text-sm">
                     {preview.unmatched.map((row, i) => (
                       <div key={i} className="flex items-center justify-between p-2 text-muted-foreground">
-                        <span className="truncate">{row.description} <span className="opacity-60">×{row.count}</span></span>
+                        <span className="truncate">
+                          <span className="opacity-60">{row.direction === "in" ? "money in ·" : "money out ·"}</span> {row.description} <span className="opacity-60">×{row.count}</span>
+                        </span>
                         <span>{currency}{row.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                       </div>
                     ))}
@@ -127,7 +136,7 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
                   className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {isImporting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Import {included.size} bill{included.size === 1 ? "" : "s"}
+                  Import {included.size} item{included.size === 1 ? "" : "s"}
                 </button>
                 <button onClick={() => { setPreview(null); setError(null); if (fileInputRef.current) fileInputRef.current.value = "" }} className="text-sm text-muted-foreground hover:text-foreground">
                   Cancel

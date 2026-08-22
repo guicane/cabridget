@@ -1,14 +1,13 @@
 // Parses a bank/credit-card CSV export into plain (date, description,
-// amount) rows, and matches them against user-defined merchant
-// mappings. Bank CSV layouts aren't standardized, so columns are
-// detected by common header names rather than a fixed layout. Only
-// outgoing money (debits/spend) is extracted — this feature is for
-// detecting bills, not income.
+// amount, direction) rows, and matches them against user-defined
+// merchant mappings. Bank CSV layouts aren't standardized, so columns
+// are detected by common header names rather than a fixed layout.
 
 export type ParsedTransaction = {
   date: Date
   description: string
-  amount: number // always positive: money out
+  amount: number // always positive
+  direction: "out" | "in"
 }
 
 export type CsvParseResult =
@@ -19,6 +18,7 @@ const DATE_HEADERS = ["date", "transaction date", "posted date", "posting date",
 const DESCRIPTION_HEADERS = ["description", "details", "narrative", "merchant", "payee", "reference", "transaction description"]
 const AMOUNT_HEADERS = ["amount", "value"]
 const DEBIT_HEADERS = ["debit", "withdrawal", "money out", "paid out", "debit amount"]
+const CREDIT_HEADERS = ["credit", "deposit", "money in", "paid in", "credit amount"]
 
 function parseCsvLine(line: string): string[] {
   const result: string[] = []
@@ -72,12 +72,13 @@ export function parseStatementCsv(text: string): CsvParseResult {
   const descCol = findCol(DESCRIPTION_HEADERS)
   const amountCol = findCol(AMOUNT_HEADERS)
   const debitCol = findCol(DEBIT_HEADERS)
+  const creditCol = findCol(CREDIT_HEADERS)
 
   if (dateCol === -1 || descCol === -1) {
     return { ok: false, error: `Couldn't find date/description columns. Found: ${headers.join(", ")}` }
   }
-  if (amountCol === -1 && debitCol === -1) {
-    return { ok: false, error: `Couldn't find an amount or debit column. Found: ${headers.join(", ")}` }
+  if (amountCol === -1 && debitCol === -1 && creditCol === -1) {
+    return { ok: false, error: `Couldn't find an amount, debit, or credit column. Found: ${headers.join(", ")}` }
   }
 
   const transactions: ParsedTransaction[] = []
@@ -89,21 +90,31 @@ export function parseStatementCsv(text: string): CsvParseResult {
     if (!date || !description) continue
 
     let amount: number | null = null
-    if (debitCol !== -1) {
-      const raw = parseAmount(cols[debitCol] || "")
-      if (raw !== null && raw > 0) amount = raw
+    let direction: "out" | "in" | null = null
+
+    if (debitCol !== -1 || creditCol !== -1) {
+      const debitRaw = debitCol !== -1 ? parseAmount(cols[debitCol] || "") : null
+      const creditRaw = creditCol !== -1 ? parseAmount(cols[creditCol] || "") : null
+      if (debitRaw !== null && debitRaw > 0) {
+        amount = debitRaw; direction = "out"
+      } else if (creditRaw !== null && creditRaw > 0) {
+        amount = creditRaw; direction = "in"
+      }
     } else if (amountCol !== -1) {
       // Single signed-amount column: negative means money out.
       const raw = parseAmount(cols[amountCol] || "")
-      if (raw !== null && raw < 0) amount = Math.abs(raw)
+      if (raw !== null && raw !== 0) {
+        amount = Math.abs(raw)
+        direction = raw < 0 ? "out" : "in"
+      }
     }
 
-    if (amount === null || amount <= 0) continue
-    transactions.push({ date, description, amount })
+    if (amount === null || direction === null || amount <= 0) continue
+    transactions.push({ date, description, amount, direction })
   }
 
   if (transactions.length === 0) {
-    return { ok: false, error: "No outgoing (debit) transactions were found in the file." }
+    return { ok: false, error: "No transactions were found in the file." }
   }
 
   return { ok: true, transactions }
@@ -114,20 +125,37 @@ export function parseStatementCsv(text: string): CsvParseResult {
 import { sumAmounts } from "./money"
 import { MONTH_NAMES } from "@/actions/months"
 
-export type MerchantMapping = { pattern: string; billName: string; billCompany: string | null }
+export type MappingKind = "Bill" | "Income"
+
+export type MerchantMapping = {
+  pattern: string
+  type: MappingKind
+  targetName: string
+  targetCompany: string | null
+}
 
 export type MatchedGroup = {
   monthIdentifier: string
-  billName: string
-  billCompany: string | null
+  kind: MappingKind
+  targetName: string
+  targetCompany: string | null
   amount: number
   transactionCount: number
 }
 
 export type UnmatchedGroup = {
   description: string
+  direction: "out" | "in"
   amount: number
   count: number
+}
+
+// A Bill mapping only ever matches outgoing money, an Income mapping
+// only ever matches incoming money — the type isn't just a label used
+// for display, it also decides which side of the statement a mapping
+// can pull from.
+function directionForType(type: MappingKind): "out" | "in" {
+  return type === "Bill" ? "out" : "in"
 }
 
 export function matchTransactions(
@@ -135,30 +163,33 @@ export function matchTransactions(
   mappings: MerchantMapping[]
 ): { matched: MatchedGroup[]; unmatched: UnmatchedGroup[] } {
   const matchedAmounts = new Map<string, { row: Omit<MatchedGroup, "amount" | "transactionCount">; amounts: number[] }>()
-  const unmatchedAmounts = new Map<string, { description: string; amounts: number[] }>()
+  const unmatchedAmounts = new Map<string, { description: string; direction: "out" | "in"; amounts: number[] }>()
 
   for (const tx of transactions) {
-    const mapping = mappings.find(m => tx.description.toLowerCase().includes(m.pattern.toLowerCase()))
+    const mapping = mappings.find(m =>
+      directionForType(m.type) === tx.direction &&
+      tx.description.toLowerCase().includes(m.pattern.toLowerCase())
+    )
     const monthIdentifier = `${MONTH_NAMES[tx.date.getMonth()]} ${tx.date.getFullYear()}`
 
     if (mapping) {
-      const key = `${monthIdentifier}__${mapping.billName}__${mapping.billCompany || ""}`
+      const key = `${monthIdentifier}__${mapping.type}__${mapping.targetName}__${mapping.targetCompany || ""}`
       const existing = matchedAmounts.get(key)
       if (existing) {
         existing.amounts.push(tx.amount)
       } else {
         matchedAmounts.set(key, {
-          row: { monthIdentifier, billName: mapping.billName, billCompany: mapping.billCompany },
+          row: { monthIdentifier, kind: mapping.type, targetName: mapping.targetName, targetCompany: mapping.targetCompany },
           amounts: [tx.amount]
         })
       }
     } else {
-      const key = tx.description.toLowerCase()
+      const key = `${tx.direction}__${tx.description.toLowerCase()}`
       const existing = unmatchedAmounts.get(key)
       if (existing) {
         existing.amounts.push(tx.amount)
       } else {
-        unmatchedAmounts.set(key, { description: tx.description, amounts: [tx.amount] })
+        unmatchedAmounts.set(key, { description: tx.description, direction: tx.direction, amounts: [tx.amount] })
       }
     }
   }
@@ -169,13 +200,14 @@ export function matchTransactions(
     transactionCount: amounts.length
   }))
 
-  const unmatched: UnmatchedGroup[] = Array.from(unmatchedAmounts.values()).map(({ description, amounts }) => ({
+  const unmatched: UnmatchedGroup[] = Array.from(unmatchedAmounts.values()).map(({ description, direction, amounts }) => ({
     description,
+    direction,
     amount: sumAmounts(amounts),
     count: amounts.length
   }))
 
-  matched.sort((a, b) => a.monthIdentifier.localeCompare(b.monthIdentifier) || a.billName.localeCompare(b.billName))
+  matched.sort((a, b) => a.monthIdentifier.localeCompare(b.monthIdentifier) || a.targetName.localeCompare(b.targetName))
   unmatched.sort((a, b) => b.amount - a.amount)
 
   return { matched, unmatched }

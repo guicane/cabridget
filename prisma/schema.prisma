@@ -89,19 +89,29 @@ model RecurringIncome {
   updatedAt   DateTime  @updatedAt
 }
 
-// A user-maintained lookup so statement imports can recognize a bill
-// without any guessing: "pattern" is matched case-insensitively as a
-// substring against a statement line's description (e.g. "NETFLIX.COM"
-// matches a RecurringBill named "Netflix").
+enum MerchantMappingType {
+  Bill
+  Income
+}
+
+// A user-maintained lookup so statement imports can recognize a bill or
+// income source without any guessing: "pattern" is matched case-
+// insensitively as a substring against a statement line's description
+// (e.g. "NETFLIX.COM" -> Bill "Netflix"; "ACME LTD PAYROLL" -> Income
+// "Salary"). Only debit (outgoing) transactions are matched against
+// Bill mappings, and only credit (incoming) transactions against
+// Income mappings — a mapping's type isn't just a label, it also gates
+// which side of a statement it can match.
 model MerchantMapping {
-  id          String    @id @default(uuid())
-  householdId String
-  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  pattern     String
-  billName    String
-  billCompany String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id            String              @id @default(uuid())
+  householdId   String
+  household     Household           @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  pattern       String
+  type          MerchantMappingType @default(Bill)
+  targetName    String // bill name (Bill) or income source (Income)
+  targetCompany String? // Bill only
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
   @@unique([householdId, pattern])
 }

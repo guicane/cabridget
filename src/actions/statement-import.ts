@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentHouseholdId } from "@/lib/household"
 import { parseStatementCsv, matchTransactions, type MatchedGroup, type UnmatchedGroup } from "@/lib/statement-csv"
 import { ensureMonthsForYear } from "./months"
+import { MerchantMappingType } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 
 export async function getMerchantMappings() {
@@ -17,15 +18,16 @@ export async function getMerchantMappings() {
 export async function addMerchantMapping(formData: FormData) {
   const householdId = await getCurrentHouseholdId()
   const pattern = (formData.get("pattern") as string || "").trim()
-  const billName = (formData.get("billName") as string || "").trim()
-  const billCompany = (formData.get("billCompany") as string || "").trim()
+  const type = (formData.get("type") as string) === "Income" ? MerchantMappingType.Income : MerchantMappingType.Bill
+  const targetName = (formData.get("targetName") as string || "").trim()
+  const targetCompany = type === MerchantMappingType.Bill ? (formData.get("targetCompany") as string || "").trim() : ""
 
-  if (!pattern || !billName) return
+  if (!pattern || !targetName) return
 
   const mapping = await prisma.merchantMapping.upsert({
     where: { householdId_pattern: { householdId, pattern } },
-    update: { billName, billCompany: billCompany || null },
-    create: { householdId, pattern, billName, billCompany: billCompany || null }
+    update: { type, targetName, targetCompany: targetCompany || null },
+    create: { householdId, pattern, type, targetName, targetCompany: targetCompany || null }
   })
 
   revalidatePath("/monthly-bills", "layout")
@@ -72,16 +74,30 @@ export async function commitStatementImport(rows: MatchedGroup[]) {
     const month = await prisma.month.findFirst({ where: { householdId, identifier: row.monthIdentifier } })
     if (!month) continue
 
-    const existing = await prisma.monthlyBill.findFirst({
-      where: { householdId, monthId: month.id, name: row.billName, company: row.billCompany }
-    })
-
-    if (existing) {
-      await prisma.monthlyBill.update({ where: { id: existing.id }, data: { amount: row.amount } })
-    } else {
-      await prisma.monthlyBill.create({
-        data: { householdId, monthId: month.id, name: row.billName, company: row.billCompany, amount: row.amount }
+    if (row.kind === "Bill") {
+      const existing = await prisma.monthlyBill.findFirst({
+        where: { householdId, monthId: month.id, name: row.targetName, company: row.targetCompany }
       })
+
+      if (existing) {
+        await prisma.monthlyBill.update({ where: { id: existing.id }, data: { amount: row.amount } })
+      } else {
+        await prisma.monthlyBill.create({
+          data: { householdId, monthId: month.id, name: row.targetName, company: row.targetCompany, amount: row.amount }
+        })
+      }
+    } else {
+      const existing = await prisma.income.findFirst({
+        where: { householdId, monthId: month.id, source: row.targetName }
+      })
+
+      if (existing) {
+        await prisma.income.update({ where: { id: existing.id }, data: { amount: row.amount } })
+      } else {
+        await prisma.income.create({
+          data: { householdId, monthId: month.id, source: row.targetName, amount: row.amount }
+        })
+      }
     }
   }
 
