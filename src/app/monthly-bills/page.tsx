@@ -1,7 +1,9 @@
 import { getRecurringBills, getMonths, getRecurringIncomes } from "@/actions/monthly-bills"
+import { getMerchantMappings } from "@/actions/statement-import"
 import { prisma } from "@/lib/prisma"
 import { getCurrentHouseholdId } from "@/lib/household"
 import { CashflowSheet } from "@/components/monthly-bills/CashflowSheet"
+import { ImportStatementButton } from "@/components/monthly-bills/ImportStatementButton"
 import { YearSelector } from "@/components/YearSelector"
 
 export const dynamic = "force-dynamic"
@@ -16,6 +18,7 @@ export default async function MonthlyBillsPage(props: { searchParams: Promise<{ 
   const initialBills = await getRecurringBills()
   const initialIncomes = await getRecurringIncomes()
   const months = await getMonths(year)
+  const merchantMappings = await getMerchantMappings()
 
   const allMonthlyBills = await prisma.monthlyBill.findMany({
     where: { householdId },
@@ -85,7 +88,10 @@ export default async function MonthlyBillsPage(props: { searchParams: Promise<{ 
           <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">Monthly Cashflow</h1>
           <p className="text-muted-foreground">Income, bills, and credit cards for each month — add a row and start typing.</p>
         </div>
-        <YearSelector currentYear={year} />
+        <div className="flex items-center gap-3">
+          <ImportStatementButton initialMappings={merchantMappings} />
+          <YearSelector currentYear={year} />
+        </div>
       </div>
 
       <CashflowSheet

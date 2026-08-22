@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { getCurrentHouseholdId } from "@/lib/household"
 
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+export const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 export async function ensureMonthsForYear(year: number) {
   const householdId = await getCurrentHouseholdId()

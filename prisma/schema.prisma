@@ -40,6 +40,7 @@ model Household {
   creditCardStatements CreditCardStatement[]
   investmentAccounts   InvestmentAccount[]
   investmentSnapshots  InvestmentSnapshot[]
+  merchantMappings     MerchantMapping[]
   settings             Settings?
 }
 
@@ -86,6 +87,23 @@ model RecurringIncome {
   source      String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+// A user-maintained lookup so statement imports can recognize a bill
+// without any guessing: "pattern" is matched case-insensitively as a
+// substring against a statement line's description (e.g. "NETFLIX.COM"
+// matches a RecurringBill named "Netflix").
+model MerchantMapping {
+  id          String    @id @default(uuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  pattern     String
+  billName    String
+  billCompany String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([householdId, pattern])
 }
 
 model RecurringBill {
