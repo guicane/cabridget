@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { upsertSnapshot, deleteInvestmentAccount, toggleInvestmentAccountActive } from "@/actions/net-worth"
-import { Trash2, CheckCircle2, Circle } from "lucide-react"
+import { Trash2, CheckCircle2, Circle, Loader2 } from "lucide-react"
 
 import { useSettings } from "@/components/providers/SettingsProvider"
 import { sumAmounts } from "@/lib/money"
@@ -36,17 +36,33 @@ type Month = {
   creditCardStatements: { balance: any, creditCardId: string }[]
 }
 
-export function SnapshotGrid({ accounts, months, creditCards = [] }: { accounts: Account[], months: Month[], creditCards?: CreditCard[] }) {
-  // Use local state to handle optimistic updates
+export function SnapshotGrid({ accounts, months, creditCards = [], onSaved }: { accounts: Account[], months: Month[], creditCards?: CreditCard[], onSaved?: (accountId: string, monthId: string, balance: number) => void }) {
   const [isUpdating, setIsUpdating] = useState<string | null>(null)
   const { currency } = useSettings()
 
+  const overrideKey = (accountId: string, monthId: string) => `${accountId}__${monthId}`
+
+  const getBalance = (accountId: string, monthId: string): number | undefined => {
+    const account = accounts.find(a => a.id === accountId)
+    const snap = account?.snapshots.find(s => s.monthId === monthId)
+    return snap ? Number(snap.balance) : undefined
+  }
+
   const handleBlur = async (accountId: string, monthId: string, value: string) => {
     if (!value || isNaN(Number(value))) return
-    
-    setIsUpdating(`${accountId}-${monthId}`)
-    await upsertSnapshot(accountId, monthId, value)
-    setIsUpdating(null)
+
+    const key = overrideKey(accountId, monthId)
+    setIsUpdating(key)
+    try {
+      await upsertSnapshot(accountId, monthId, value)
+      onSaved?.(accountId, monthId, Number(value))
+    } catch (err) {
+      // Silent failure here is exactly how this bug went unnoticed before:
+      // the input still shows what was typed, so nothing looked wrong.
+      window.alert(`Couldn't save this value — it was not recorded. ${err instanceof Error ? err.message : "Please try again."}`)
+    } finally {
+      setIsUpdating(null)
+    }
   }
 
   // Calculate totals per month across all accounts minus credit card debt
@@ -54,7 +70,7 @@ export function SnapshotGrid({ accounts, months, creditCards = [] }: { accounts:
     const month = months.find(m => m.id === monthId)
     if (!month) return 0
     return computeMonthTotal(
-      accounts.map(a => ({ snapshots: a.snapshots.map(s => ({ monthId: s.monthId, balance: Number(s.balance) })) })),
+      accounts.map(a => ({ snapshots: [{ monthId, balance: getBalance(a.id, monthId) ?? 0 }] })),
       { id: month.id, creditCardStatements: month.creditCardStatements.map(cc => ({ balance: Number(cc.balance) })) }
     )
   }
@@ -63,7 +79,7 @@ export function SnapshotGrid({ accounts, months, creditCards = [] }: { accounts:
   // for it and every active credit card has a statement entered for it.
   const isMonthComplete = (monthId: string) => {
     const activeAccounts = accounts.filter(a => a.active)
-    const missingAccount = activeAccounts.some(a => !a.snapshots.some(s => s.monthId === monthId))
+    const missingAccount = activeAccounts.some(a => getBalance(a.id, monthId) === undefined)
     if (missingAccount) return false
 
     const month = months.find(m => m.id === monthId)
@@ -89,12 +105,7 @@ export function SnapshotGrid({ accounts, months, creditCards = [] }: { accounts:
   // Calculate subtotal for a specific category
   const getCategoryTotal = (category: string, monthId: string) => {
     const categoryAccounts = accountsByCategory[category] || []
-    return sumAmounts(
-      categoryAccounts.map(account => {
-        const snap = account.snapshots.find(s => s.monthId === monthId)
-        return snap ? Number(snap.balance) : 0
-      })
-    )
+    return sumAmounts(categoryAccounts.map(account => getBalance(account.id, monthId) ?? 0))
   }
 
   return (
@@ -159,17 +170,20 @@ export function SnapshotGrid({ accounts, months, creditCards = [] }: { accounts:
                       </div>
                     </td>
                     {months.map(month => {
-                      const snapshot = account.snapshots.find(s => s.monthId === month.id)
-                      const balance = snapshot ? Number(snapshot.balance) : ""
-                      
+                      const balance = getBalance(account.id, month.id) ?? ""
+                      const saving = isUpdating === overrideKey(account.id, month.id)
+
                       return (
                         <td key={month.id} className="p-4">
                           <div className="relative">
-                            <span className="absolute left-3 top-2 text-muted-foreground text-sm">{currency}</span>
+                            {saving
+                              ? <Loader2 className="absolute left-3 top-2 w-3.5 h-3.5 text-muted-foreground animate-spin" />
+                              : <span className="absolute left-3 top-2 text-muted-foreground text-sm">{currency}</span>}
                             <input
                               type="number"
                               defaultValue={balance}
                               onBlur={(e) => handleBlur(account.id, month.id, e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur() }}
                               placeholder="0.00"
                               className="w-full pl-6 pr-3 py-1.5 bg-transparent hover:bg-muted focus:bg-background border border-transparent rounded text-right text-base text-foreground focus:outline-none focus:border-primary/50 transition-all"
                             />
