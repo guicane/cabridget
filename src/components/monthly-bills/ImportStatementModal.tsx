@@ -7,8 +7,13 @@ import { previewStatementImport, commitStatementImport, type ImportPreview } fro
 import { useSettings } from "@/components/providers/SettingsProvider"
 import { cn } from "@/lib/utils"
 
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
 export function ImportStatementModal({ onClose }: { onClose: () => void }) {
   const { currency } = useSettings()
+  const now = new Date()
+  const [month, setMonth] = useState(MONTH_NAMES[now.getMonth()])
+  const [year, setYear] = useState(now.getFullYear())
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [included, setIncluded] = useState<Set<number>>(new Set())
   const [error, setError] = useState<string | null>(null)
@@ -16,6 +21,8 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
   const [isImporting, setIsImporting] = useState(false)
   const [done, setDone] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const years = Array.from({ length: 10 }, (_, i) => now.getFullYear() - 5 + i)
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -27,6 +34,8 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
 
     const formData = new FormData()
     formData.set("file", file)
+    formData.set("month", month)
+    formData.set("year", String(year))
     const result = await previewStatementImport(formData)
     setIsParsing(false)
 
@@ -148,6 +157,30 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
               <p className="text-xs text-muted-foreground mb-4">
                 Matches transactions against the merchant mappings configured in <Link href="/settings" className="text-primary hover:underline">Settings</Link>.
               </p>
+
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Import into</label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={month}
+                    onChange={e => setMonth(e.target.value)}
+                    className="px-3 py-1.5 bg-input border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 cursor-pointer"
+                  >
+                    {MONTH_NAMES.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <select
+                    value={year}
+                    onChange={e => setYear(Number(e.target.value))}
+                    className="px-3 py-1.5 bg-input border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 cursor-pointer"
+                  >
+                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Every transaction in this statement will be imported into this one month, regardless of the individual dates on the statement.
+                </p>
+              </div>
+
               <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-[18px] p-8 cursor-pointer hover:border-primary transition-colors">
                 {isParsing ? <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" /> : <Upload className="w-6 h-6 text-muted-foreground" />}
                 <span className="text-sm text-muted-foreground">{isParsing ? "Parsing..." : "Click to choose a .csv or .pdf file"}</span>

@@ -123,7 +123,6 @@ export function parseStatementCsv(text: string): CsvParseResult {
 // --- Matching parsed transactions against merchant mappings ---
 
 import { sumAmounts } from "./money"
-import { MONTH_NAMES } from "@/actions/months"
 
 export type MappingKind = "Bill" | "Income"
 
@@ -158,9 +157,16 @@ function directionForType(type: MappingKind): "out" | "in" {
   return type === "Bill" ? "out" : "in"
 }
 
+// monthIdentifier is supplied by the caller rather than derived from each
+// transaction's own date: a single statement routinely spans a calendar
+// month boundary (e.g. a "3 Dec to 2 Jan" billing period), and the user
+// wants the whole statement attributed to the one month they picked before
+// importing, not split across two months based on which day a transaction
+// happened to post.
 export function matchTransactions(
   transactions: ParsedTransaction[],
-  mappings: MerchantMapping[]
+  mappings: MerchantMapping[],
+  monthIdentifier: string
 ): { matched: MatchedGroup[]; unmatched: UnmatchedGroup[] } {
   const matchedAmounts = new Map<string, { row: Omit<MatchedGroup, "amount" | "transactionCount">; amounts: number[] }>()
   const unmatchedAmounts = new Map<string, { description: string; direction: "out" | "in"; amounts: number[] }>()
@@ -170,10 +176,9 @@ export function matchTransactions(
       directionForType(m.type) === tx.direction &&
       tx.description.toLowerCase().includes(m.pattern.toLowerCase())
     )
-    const monthIdentifier = `${MONTH_NAMES[tx.date.getMonth()]} ${tx.date.getFullYear()}`
 
     if (mapping) {
-      const key = `${monthIdentifier}__${mapping.type}__${mapping.targetName}__${mapping.targetCompany || ""}`
+      const key = `${mapping.type}__${mapping.targetName}__${mapping.targetCompany || ""}`
       const existing = matchedAmounts.get(key)
       if (existing) {
         existing.amounts.push(tx.amount)
@@ -207,7 +212,7 @@ export function matchTransactions(
     count: amounts.length
   }))
 
-  matched.sort((a, b) => a.monthIdentifier.localeCompare(b.monthIdentifier) || a.targetName.localeCompare(b.targetName))
+  matched.sort((a, b) => a.targetName.localeCompare(b.targetName))
   unmatched.sort((a, b) => b.amount - a.amount)
 
   return { matched, unmatched }

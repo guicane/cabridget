@@ -54,6 +54,11 @@ export async function previewStatementImport(formData: FormData): Promise<Import
   const file = formData.get("file") as File | null
   if (!file || file.size === 0) return { error: "No file provided." }
 
+  const month = formData.get("month") as string | null
+  const year = formData.get("year") as string | null
+  if (!month || !year) return { error: "Select a month and year to import into." }
+  const monthIdentifier = `${month} ${year}`
+
   const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
   const result = isPdf
     ? await parseStatementPdf(Buffer.from(await file.arrayBuffer()))
@@ -62,7 +67,7 @@ export async function previewStatementImport(formData: FormData): Promise<Import
 
   const mappings = await prisma.merchantMapping.findMany({ where: { householdId } })
 
-  return matchTransactions(result.transactions, mappings)
+  return matchTransactions(result.transactions, mappings, monthIdentifier)
 }
 
 export async function commitStatementImport(rows: MatchedGroup[]) {
