@@ -15,11 +15,20 @@
 // layout at all.
 
 import "./dommatrix-polyfill"
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
+import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs"
 import path from "path"
+import { pathToFileURL } from "url"
 import type { ParsedTransaction, CsvParseResult } from "./statement-csv"
 
 const STANDARD_FONT_DATA_URL = path.join(process.cwd(), "node_modules/pdfjs-dist/standard_fonts") + path.sep
+
+// pdfjs-dist defaults to a relative worker path ("./pdf.worker.mjs") that
+// it resolves against its own bundled module location. Turbopack's
+// chunking moves that code somewhere else on disk, so the default guess
+// points at a file that doesn't exist there — set it explicitly instead.
+GlobalWorkerOptions.workerSrc = pathToFileURL(
+  path.join(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs")
+).href
 
 const MONTH_NAMES: Record<string, number> = {
   jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
@@ -288,12 +297,19 @@ export async function parseStatementPdf(buffer: Buffer): Promise<CsvParseResult>
   let pages: Row[][]
   try {
     pages = await extractPages(buffer)
-  } catch {
+  } catch (err) {
+    console.error("statement-pdf: extractPages failed", err)
     return { ok: false, error: "Couldn't read this PDF. It may be a scanned image rather than a text-based statement, which isn't supported yet." }
   }
 
-  const columnTransactions = parseByColumns(pages)
-  const transactions = columnTransactions.length > 0 ? columnTransactions : parseByLines(pages)
+  let transactions: ParsedTransaction[]
+  try {
+    const columnTransactions = parseByColumns(pages)
+    transactions = columnTransactions.length > 0 ? columnTransactions : parseByLines(pages)
+  } catch (err) {
+    console.error("statement-pdf: parsing extracted text failed", err)
+    return { ok: false, error: "This PDF's layout couldn't be parsed. Its structure may need a tweak to the parser in src/lib/statement-pdf.ts." }
+  }
 
   if (transactions.length === 0) {
     return { ok: false, error: "No transactions were recognized in this PDF. Its layout may need a tweak to the parser in src/lib/statement-pdf.ts." }
