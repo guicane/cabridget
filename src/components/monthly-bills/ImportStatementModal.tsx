@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { X, Upload, Loader2, CheckCircle2, Circle } from "lucide-react"
 import { previewStatementImport, commitStatementImport, type ImportPreview } from "@/actions/statement-import"
 import { useSettings } from "@/components/providers/SettingsProvider"
@@ -13,9 +13,17 @@ const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
 export function ImportStatementModal({ onClose }: { onClose: () => void }) {
   const { currency } = useSettings()
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const now = new Date()
+  // Default to whatever year the sheet is currently showing (the "year"
+  // query param YearSelector drives), not the real current year — a
+  // statement dated in a year other than what's on screen otherwise looks
+  // like the import silently did nothing, since that year's columns
+  // aren't rendered at all.
+  const pageYear = parseInt(searchParams.get("year") || "", 10) || now.getFullYear()
   const [month, setMonth] = useState(MONTH_NAMES[now.getMonth()])
-  const [year, setYear] = useState(now.getFullYear())
+  const [year, setYear] = useState(pageYear)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [included, setIncluded] = useState<Set<number>>(new Set())
   const [error, setError] = useState<string | null>(null)
@@ -54,7 +62,17 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
     setIsImporting(true)
     const rowsToImport = preview.matched.filter((_, i) => included.has(i))
     await commitStatementImport(rowsToImport)
-    router.refresh()
+    // If the import targeted a year other than the one currently on
+    // screen, navigate there so the result is actually visible — a
+    // same-year refresh wouldn't show it, since the sheet only renders
+    // columns for the year in the URL.
+    if (year !== pageYear) {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set("year", String(year))
+      router.push(`${pathname}?${params.toString()}`)
+    } else {
+      router.refresh()
+    }
     setIsImporting(false)
     setDone(rowsToImport.length)
   }
