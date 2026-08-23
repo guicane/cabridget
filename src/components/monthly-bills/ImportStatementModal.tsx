@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { X, Upload, Loader2, CheckCircle2, Circle } from "lucide-react"
 import { previewStatementImport, commitStatementImport, type ImportPreview } from "@/actions/statement-import"
 import { useSettings } from "@/components/providers/SettingsProvider"
@@ -11,6 +12,7 @@ const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
 
 export function ImportStatementModal({ onClose }: { onClose: () => void }) {
   const { currency } = useSettings()
+  const router = useRouter()
   const now = new Date()
   const [month, setMonth] = useState(MONTH_NAMES[now.getMonth()])
   const [year, setYear] = useState(now.getFullYear())
@@ -52,6 +54,7 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
     setIsImporting(true)
     const rowsToImport = preview.matched.filter((_, i) => included.has(i))
     await commitStatementImport(rowsToImport)
+    router.refresh()
     setIsImporting(false)
     setDone(rowsToImport.length)
   }
