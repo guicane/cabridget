@@ -154,9 +154,14 @@ export function CashflowSheet({
   const { currency } = useSettings()
   const [editingKey, setEditingKey] = useState<string | null>(null)
 
-  const handleClearMonth = (monthId: string, label: string) => {
+  // Neither revalidatePath nor the Server-Action-side refresh() reliably
+  // updated the already-mounted sheet in this app — a real browser reload
+  // is the one thing confirmed to work, so force it explicitly rather
+  // than trust the framework's implicit client refresh.
+  const handleClearMonth = async (monthId: string, label: string) => {
     if (window.confirm(`Permanently clear ALL income, bills, and credit card statements for ${label}? This cannot be undone.`)) {
-      clearMonth(monthId)
+      await clearMonth(monthId)
+      window.location.reload()
     }
   }
 

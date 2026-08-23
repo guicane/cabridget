@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import Link from "next/link"
-import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { X, Upload, Loader2, CheckCircle2, Circle } from "lucide-react"
 import { previewStatementImport, commitStatementImport, type ImportPreview } from "@/actions/statement-import"
 import { useSettings } from "@/components/providers/SettingsProvider"
@@ -12,7 +12,6 @@ const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
 
 export function ImportStatementModal({ onClose }: { onClose: () => void }) {
   const { currency } = useSettings()
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const now = new Date()
@@ -62,19 +61,22 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
     setIsImporting(true)
     const rowsToImport = preview.matched.filter((_, i) => included.has(i))
     await commitStatementImport(rowsToImport)
-    // If the import targeted a year other than the one currently on
-    // screen, navigate there so the result is actually visible — a
-    // same-year refresh wouldn't show it, since the sheet only renders
-    // columns for the year in the URL.
+    setIsImporting(false)
+    setDone(rowsToImport.length)
+  }
+
+  // Neither revalidatePath nor the Server-Action-side refresh() reliably
+  // updated the already-mounted sheet in this app — a real browser
+  // navigation is the one thing confirmed to work, so use it explicitly
+  // instead of trusting the framework's implicit client refresh.
+  const handleDone = () => {
     if (year !== pageYear) {
       const params = new URLSearchParams(searchParams.toString())
       params.set("year", String(year))
-      router.push(`${pathname}?${params.toString()}`)
+      window.location.href = `${pathname}?${params.toString()}`
     } else {
-      router.refresh()
+      window.location.reload()
     }
-    setIsImporting(false)
-    setDone(rowsToImport.length)
   }
 
   const toggleIncluded = (i: number) => {
@@ -100,7 +102,7 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
             <div className="text-center py-8">
               <CheckCircle2 className="w-10 h-10 text-primary mx-auto mb-3" />
               <p className="text-foreground font-medium">Imported {done} item{done === 1 ? "" : "s"}.</p>
-              <button onClick={onClose} className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm">
+              <button onClick={handleDone} className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm">
                 Done
               </button>
             </div>
