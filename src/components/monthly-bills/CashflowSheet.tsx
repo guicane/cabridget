@@ -5,9 +5,9 @@ import {
   addMonthlyBill, upsertMonthlyBillEntry, deleteMonthlyBillSeries, renameBillSeries, updateMonthlyBill,
   addRecurringIncome, upsertIncomeEntry, deleteIncomeSeries, renameIncomeSeries, updateIncome,
   addCreditCard, deleteCreditCardStatementSeries, updateCreditCard, toggleCreditCardActive,
-  upsertCreditCardStatement,
+  upsertCreditCardStatement, clearMonth,
 } from "@/actions/monthly-bills"
-import { CheckCircle2, Circle, Pencil, Check, Plus, Trash2 } from "lucide-react"
+import { CheckCircle2, Circle, Pencil, Check, Plus, Trash2, Eraser } from "lucide-react"
 import type { Month } from "@prisma/client"
 import { useSettings } from "@/components/providers/SettingsProvider"
 import { sumAmounts } from "@/lib/money"
@@ -154,6 +154,12 @@ export function CashflowSheet({
   const { currency } = useSettings()
   const [editingKey, setEditingKey] = useState<string | null>(null)
 
+  const handleClearMonth = (monthId: string, label: string) => {
+    if (window.confirm(`Permanently clear ALL income, bills, and credit card statements for ${label}? This cannot be undone.`)) {
+      clearMonth(monthId)
+    }
+  }
+
   const incomeRowMap = new Map<string, { source: string }>()
   incomes.forEach(i => incomeRowMap.set(i.source, { source: i.source }))
   incomeTemplates.forEach(t => incomeRowMap.set(t.source, { source: t.source }))
@@ -182,7 +188,16 @@ export function CashflowSheet({
               <th className="p-4 font-semibold text-foreground border-b border-border min-w-[200px] sticky left-0 z-20 bg-muted">Line Item</th>
               {months.map(month => (
                 <th key={month.id} className="p-4 font-semibold text-foreground border-b border-border min-w-[180px]">
-                  {month.identifier}
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{month.identifier}</span>
+                    <button
+                      onClick={() => handleClearMonth(month.id, month.identifier)}
+                      className="text-muted-foreground hover:text-negative p-1 font-normal shrink-0"
+                      title={`Clear all data for ${month.identifier}`}
+                    >
+                      <Eraser className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </th>
               ))}
               <th className="p-4 font-semibold text-foreground text-right border-b border-border min-w-[120px] sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">Total</th>

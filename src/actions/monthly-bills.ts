@@ -4,7 +4,22 @@ import { ensureMonthsForYear, sortMonths } from "./months"
 
 import { prisma } from "@/lib/prisma"
 import { getCurrentHouseholdId } from "@/lib/household"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, refresh } from "next/cache"
+
+// Clears every bill, income, and credit-card-statement entry for one
+// month — an escape hatch for re-doing a statement import that went into
+// the wrong month. Leaves the RecurringBill/RecurringIncome templates and
+// every other month untouched; only this month's entries are removed.
+export async function clearMonth(monthId: string) {
+  const householdId = await getCurrentHouseholdId()
+
+  await prisma.monthlyBill.deleteMany({ where: { householdId, monthId } })
+  await prisma.income.deleteMany({ where: { householdId, monthId } })
+  await prisma.creditCardStatement.deleteMany({ where: { householdId, monthId } })
+
+  revalidatePath("/monthly-bills", "layout")
+  refresh()
+}
 
 export async function getRecurringBills() {
   const householdId = await getCurrentHouseholdId()
