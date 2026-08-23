@@ -131,11 +131,17 @@ export async function deleteMonthlyBill(id: string) {
   revalidatePath("/monthly-bills", "layout")
 }
 
+// Deletes a bill everywhere it appears: every MonthlyBill entry and the
+// RecurringBill template, if one exists. The row is shown in the sheet
+// whenever either source has a matching name/company (see
+// CashflowSheet's billRowMap), so leaving the template behind after
+// clearing only the entries would make the row reappear as empty instead
+// of disappearing.
 export async function deleteMonthlyBillSeries(name: string, company: string | null) {
   const householdId = await getCurrentHouseholdId()
-  await prisma.monthlyBill.deleteMany({
-    where: { householdId, name, company }
-  })
+
+  await prisma.recurringBill.deleteMany({ where: { householdId, name, company } })
+  await prisma.monthlyBill.deleteMany({ where: { householdId, name, company } })
 
   revalidatePath("/monthly-bills", "layout")
 }
@@ -288,11 +294,12 @@ export async function addIncome(formData: FormData) {
   revalidatePath("/monthly-bills", "layout")
 }
 
+// See deleteMonthlyBillSeries — same reasoning, for income.
 export async function deleteIncomeSeries(source: string) {
   const householdId = await getCurrentHouseholdId()
-  await prisma.income.deleteMany({
-    where: { householdId, source }
-  })
+
+  await prisma.recurringIncome.deleteMany({ where: { householdId, source } })
+  await prisma.income.deleteMany({ where: { householdId, source } })
 
   revalidatePath("/monthly-bills", "layout")
 }
