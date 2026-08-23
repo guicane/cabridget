@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { getNetWorthData } from "@/actions/net-worth"
 import { AccountManager } from "@/components/net-worth/AccountManager"
 import { SnapshotGrid } from "@/components/net-worth/SnapshotGrid"
+import { NetWorthChart } from "@/components/net-worth/NetWorthChart"
 import { YearSelector } from "@/components/YearSelector"
 
 export default async function NetWorthPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
@@ -41,6 +42,8 @@ export default async function NetWorthPage(props: { searchParams: Promise<{ [key
           <YearSelector currentYear={year} />
         </div>
       </div>
+
+      <NetWorthChart accounts={serializedAccounts as any} months={serializedMonths as any} />
 
       <SnapshotGrid accounts={serializedAccounts as any} months={serializedMonths as any} creditCards={creditCards} />
     </div>

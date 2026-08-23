@@ -6,6 +6,7 @@ import { Trash2, CheckCircle2, Circle } from "lucide-react"
 
 import { useSettings } from "@/components/providers/SettingsProvider"
 import { sumAmounts } from "@/lib/money"
+import { computeMonthTotal } from "@/lib/net-worth"
 
 // Types matching the Prisma schema relationships
 type Snapshot = {
@@ -50,17 +51,12 @@ export function SnapshotGrid({ accounts, months, creditCards = [] }: { accounts:
 
   // Calculate totals per month across all accounts minus credit card debt
   const getMonthTotal = (monthId: string) => {
-    const assets = sumAmounts(
-      accounts.map(account => {
-        const snap = account.snapshots.find(s => s.monthId === monthId)
-        return snap ? Number(snap.balance) : 0
-      })
-    )
-
     const month = months.find(m => m.id === monthId)
-    const ccDebt = sumAmounts((month?.creditCardStatements || []).map(cc => Number(cc.balance)))
-
-    return sumAmounts([assets, -ccDebt])
+    if (!month) return 0
+    return computeMonthTotal(
+      accounts.map(a => ({ snapshots: a.snapshots.map(s => ({ monthId: s.monthId, balance: Number(s.balance) })) })),
+      { id: month.id, creditCardStatements: month.creditCardStatements.map(cc => ({ balance: Number(cc.balance) })) }
+    )
   }
 
   // A month is complete once every active investment has a value entered
