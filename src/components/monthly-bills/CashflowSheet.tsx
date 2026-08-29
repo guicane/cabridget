@@ -175,6 +175,15 @@ export function CashflowSheet({
   templates.forEach(t => billRowMap.set(`${t.name}-${t.company || ''}`, { name: t.name, company: t.company }))
   const uniqueBillRows = Array.from(billRowMap.values()).sort((a, b) => a.name.localeCompare(b.name))
 
+  // bills/incomes/creditCardStatements are fetched for the whole household
+  // (every year), not just the year currently on screen — months is the
+  // only prop already scoped to the selected year. Every total below must
+  // filter through monthIds, or switching years wouldn't change anything
+  // computed across "all of this row's entries" (the row Total column,
+  // every section total, and the bottom summary).
+  const monthIds = new Set(months.map(m => m.id))
+  const inYear = <T extends { monthId: string }>(rows: T[]) => rows.filter(r => monthIds.has(r.monthId))
+
   // Section and overall totals — "outgoing" is bills plus credit card
   // statements combined, since both represent money leaving that month.
   const getIncomeMonthTotal = (monthId: string) => sumAmounts(incomes.filter(i => i.monthId === monthId).map(i => i.amount))
@@ -184,11 +193,11 @@ export function CashflowSheet({
   const monthHasAnyData = (monthId: string) =>
     incomes.some(i => i.monthId === monthId) || bills.some(b => b.monthId === monthId) || creditCardStatements.some(s => s.monthId === monthId)
 
-  const totalIncomeGrand = sumAmounts(incomes.map(i => i.amount))
-  const totalBillsGrand = sumAmounts(bills.map(b => b.amount))
-  const totalCreditCardsGrand = sumAmounts(creditCardStatements.map(s => s.balance))
+  const totalIncomeGrand = sumAmounts(inYear(incomes).map(i => i.amount))
+  const totalBillsGrand = sumAmounts(inYear(bills).map(b => b.amount))
+  const totalCreditCardsGrand = sumAmounts(inYear(creditCardStatements).map(s => s.balance))
   const totalOutgoingGrand = sumAmounts([totalBillsGrand, totalCreditCardsGrand])
-  const hasAnyDataAtAll = incomes.length > 0 || bills.length > 0 || creditCardStatements.length > 0
+  const hasAnyDataAtAll = inYear(incomes).length > 0 || inYear(bills).length > 0 || inYear(creditCardStatements).length > 0
 
   const formatOrDash = (amount: number) => amount > 0 ? `${currency}${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
 
@@ -207,7 +216,7 @@ export function CashflowSheet({
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-muted">
-              <th className="p-4 font-semibold text-foreground border-b border-border min-w-[200px] sticky left-0 z-20 bg-muted">Line Item</th>
+              <th className="p-4 font-semibold text-foreground border-b border-border min-w-[200px] sticky left-0 z-20 bg-muted-solid">Line Item</th>
               {months.map(month => (
                 <th key={month.id} className="p-4 font-semibold text-foreground border-b border-border min-w-[180px]">
                   <div className="flex items-center justify-between gap-2">
@@ -222,7 +231,7 @@ export function CashflowSheet({
                   </div>
                 </th>
               ))}
-              <th className="p-4 font-semibold text-foreground text-right border-b border-border min-w-[120px] sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">Total</th>
+              <th className="p-4 font-semibold text-foreground text-right border-b border-border min-w-[120px] sticky right-0 z-20 bg-muted-solid shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -256,7 +265,7 @@ export function CashflowSheet({
                   })}
                   <td className="p-4 border-l border-border/50 text-right font-bold text-foreground sticky right-0 z-10 bg-card shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
                     {(() => {
-                      const total = sumAmounts(incomes.filter(i => i.source === row.source).map(i => i.amount))
+                      const total = sumAmounts(inYear(incomes).filter(i => i.source === row.source).map(i => i.amount))
                       return total > 0 ? `${currency}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
                     })()}
                   </td>
@@ -308,7 +317,7 @@ export function CashflowSheet({
                   })}
                   <td className="p-4 border-l border-border/50 text-right font-bold text-foreground sticky right-0 z-10 bg-card shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
                     {(() => {
-                      const total = sumAmounts(bills.filter(b => b.name === row.name && b.company === row.company).map(b => b.amount))
+                      const total = sumAmounts(inYear(bills).filter(b => b.name === row.name && b.company === row.company).map(b => b.amount))
                       return total > 0 ? `${currency}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
                     })()}
                   </td>
@@ -367,7 +376,7 @@ export function CashflowSheet({
                   })}
                   <td className="p-4 border-l border-border/50 text-right font-bold text-foreground sticky right-0 z-10 bg-card shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
                     {(() => {
-                      const total = sumAmounts(creditCardStatements.filter(s => s.creditCardId === card.id).map(s => s.balance))
+                      const total = sumAmounts(inYear(creditCardStatements).filter(s => s.creditCardId === card.id).map(s => s.balance))
                       return total > 0 ? `${currency}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
                     })()}
                   </td>
@@ -391,18 +400,18 @@ export function CashflowSheet({
           </tbody>
           <tfoot className="bg-muted/30">
             <tr>
-              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50 sticky left-0 z-20 bg-muted">Total Outgoing</td>
+              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50 sticky left-0 z-20 bg-muted-solid">Total Outgoing</td>
               {months.map(month => (
                 <td key={month.id} className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50">
                   {formatOrDash(getOutgoingMonthTotal(month.id))}
                 </td>
               ))}
-              <td className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-l border-border/50 sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
+              <td className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-l border-border/50 sticky right-0 z-20 bg-muted-solid shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
                 {formatOrDash(totalOutgoingGrand)}
               </td>
             </tr>
             <tr>
-              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50 sticky left-0 z-20 bg-muted">Difference</td>
+              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50 sticky left-0 z-20 bg-muted-solid">Difference</td>
               {months.map(month => {
                 const net = sumAmounts([getOutgoingMonthTotal(month.id), -getIncomeMonthTotal(month.id)])
                 return (
@@ -411,7 +420,7 @@ export function CashflowSheet({
                   </td>
                 )
               })}
-              <td className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-l border-border/50 sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
+              <td className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-l border-border/50 sticky right-0 z-20 bg-muted-solid shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
                 {(() => {
                   const netGrand = sumAmounts([totalOutgoingGrand, -totalIncomeGrand])
                   return hasAnyDataAtAll ? `${currency}${netGrand.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"

@@ -10,6 +10,10 @@
 
   --muted: rgba(18, 16, 28, 0.05);
   --muted-foreground: #6d6a7a;
+  /* Opaque equivalent of --muted, for sticky columns — a translucent
+     background lets scrolled-past content show through underneath a
+     frozen column, so anything sticky needs a solid fill instead. */
+  --muted-solid: #f3f3f4;
 
   --border: rgba(18, 16, 28, 0.10);
   --input: #ffffff;
@@ -32,6 +36,7 @@
 
   --muted: rgba(255, 255, 255, 0.06);
   --muted-foreground: #8b8798;
+  --muted-solid: #24222c;
 
   --border: rgba(255, 255, 255, 0.09);
   --input: #16141f;
@@ -52,6 +57,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-muted-solid: var(--muted-solid);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-primary: var(--primary);
