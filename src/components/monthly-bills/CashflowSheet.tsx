@@ -175,6 +175,23 @@ export function CashflowSheet({
   templates.forEach(t => billRowMap.set(`${t.name}-${t.company || ''}`, { name: t.name, company: t.company }))
   const uniqueBillRows = Array.from(billRowMap.values()).sort((a, b) => a.name.localeCompare(b.name))
 
+  // Section and overall totals — "outgoing" is bills plus credit card
+  // statements combined, since both represent money leaving that month.
+  const getIncomeMonthTotal = (monthId: string) => sumAmounts(incomes.filter(i => i.monthId === monthId).map(i => i.amount))
+  const getBillsMonthTotal = (monthId: string) => sumAmounts(bills.filter(b => b.monthId === monthId).map(b => b.amount))
+  const getCreditCardsMonthTotal = (monthId: string) => sumAmounts(creditCardStatements.filter(s => s.monthId === monthId).map(s => s.balance))
+  const getOutgoingMonthTotal = (monthId: string) => sumAmounts([getBillsMonthTotal(monthId), getCreditCardsMonthTotal(monthId)])
+  const monthHasAnyData = (monthId: string) =>
+    incomes.some(i => i.monthId === monthId) || bills.some(b => b.monthId === monthId) || creditCardStatements.some(s => s.monthId === monthId)
+
+  const totalIncomeGrand = sumAmounts(incomes.map(i => i.amount))
+  const totalBillsGrand = sumAmounts(bills.map(b => b.amount))
+  const totalCreditCardsGrand = sumAmounts(creditCardStatements.map(s => s.balance))
+  const totalOutgoingGrand = sumAmounts([totalBillsGrand, totalCreditCardsGrand])
+  const hasAnyDataAtAll = incomes.length > 0 || bills.length > 0 || creditCardStatements.length > 0
+
+  const formatOrDash = (amount: number) => amount > 0 ? `${currency}${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
+
   if (months.length === 0) {
     return (
       <div className="bg-card rounded-[18px] p-12 text-center border border-border border-dashed">
@@ -246,6 +263,17 @@ export function CashflowSheet({
                 </tr>
               )
             })}
+            <tr className="border-b-2 border-border bg-transparent">
+              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 sticky left-0 z-10 bg-card">Total Income</td>
+              {months.map(month => (
+                <td key={month.id} className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400">
+                  {formatOrDash(getIncomeMonthTotal(month.id))}
+                </td>
+              ))}
+              <td className="p-4 border-l border-border/50 text-right font-bold text-yellow-600 dark:text-yellow-400 sticky right-0 z-10 bg-card shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
+                {formatOrDash(totalIncomeGrand)}
+              </td>
+            </tr>
             <AddRowForm placeholder="Add income source..." onAdd={(name) => {
               const fd = new FormData(); fd.set("source", name); addRecurringIncome(fd)
             }} />
@@ -287,6 +315,17 @@ export function CashflowSheet({
                 </tr>
               )
             })}
+            <tr className="border-b-2 border-border bg-transparent">
+              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 sticky left-0 z-10 bg-card">Total Bills</td>
+              {months.map(month => (
+                <td key={month.id} className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400">
+                  {formatOrDash(getBillsMonthTotal(month.id))}
+                </td>
+              ))}
+              <td className="p-4 border-l border-border/50 text-right font-bold text-yellow-600 dark:text-yellow-400 sticky right-0 z-10 bg-card shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
+                {formatOrDash(totalBillsGrand)}
+              </td>
+            </tr>
             <AddRowForm placeholder="Add bill..." onAdd={(name) => {
               const fd = new FormData(); fd.set("name", name); addMonthlyBill(fd)
             }} />
@@ -335,6 +374,17 @@ export function CashflowSheet({
                 </tr>
               )
             })}
+            <tr className="border-b-2 border-border bg-transparent">
+              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 sticky left-0 z-10 bg-card">Total Credit Cards</td>
+              {months.map(month => (
+                <td key={month.id} className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400">
+                  {formatOrDash(getCreditCardsMonthTotal(month.id))}
+                </td>
+              ))}
+              <td className="p-4 border-l border-border/50 text-right font-bold text-yellow-600 dark:text-yellow-400 sticky right-0 z-10 bg-card shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
+                {formatOrDash(totalCreditCardsGrand)}
+              </td>
+            </tr>
             <AddRowForm placeholder="Add credit card..." onAdd={(name) => {
               const fd = new FormData(); fd.set("name", name); addCreditCard(fd)
             }} />
@@ -371,6 +421,45 @@ export function CashflowSheet({
                 {(() => {
                   const total = sumAmounts(bills.filter(b => !b.isPaid).map(b => b.amount))
                   return total > 0 ? `${currency}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
+                })()}
+              </td>
+            </tr>
+            <tr>
+              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50 sticky left-0 z-20 bg-muted">Total Income</td>
+              {months.map(month => (
+                <td key={month.id} className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50">
+                  {formatOrDash(getIncomeMonthTotal(month.id))}
+                </td>
+              ))}
+              <td className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-l border-border/50 sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
+                {formatOrDash(totalIncomeGrand)}
+              </td>
+            </tr>
+            <tr>
+              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50 sticky left-0 z-20 bg-muted">Total Outgoing</td>
+              {months.map(month => (
+                <td key={month.id} className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50">
+                  {formatOrDash(getOutgoingMonthTotal(month.id))}
+                </td>
+              ))}
+              <td className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-l border-border/50 sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
+                {formatOrDash(totalOutgoingGrand)}
+              </td>
+            </tr>
+            <tr>
+              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50 sticky left-0 z-20 bg-muted">Outgoing - Income</td>
+              {months.map(month => {
+                const net = sumAmounts([getOutgoingMonthTotal(month.id), -getIncomeMonthTotal(month.id)])
+                return (
+                  <td key={month.id} className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50">
+                    {monthHasAnyData(month.id) ? `${currency}${net.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"}
+                  </td>
+                )
+              })}
+              <td className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-l border-border/50 sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
+                {(() => {
+                  const netGrand = sumAmounts([totalOutgoingGrand, -totalIncomeGrand])
+                  return hasAnyDataAtAll ? `${currency}${netGrand.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
                 })()}
               </td>
             </tr>
