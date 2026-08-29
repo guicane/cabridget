@@ -4,12 +4,20 @@ import { ensureMonthsForYear, sortMonths } from "./months"
 
 import { prisma } from "@/lib/prisma"
 import { getCurrentHouseholdId } from "@/lib/household"
-import { revalidatePath, refresh } from "next/cache"
+import { revalidatePath } from "next/cache"
 
 // Clears every bill, income, and credit-card-statement entry for one
 // month — an escape hatch for re-doing a statement import that went into
 // the wrong month. Leaves the RecurringBill/RecurringIncome templates and
 // every other month untouched; only this month's entries are removed.
+//
+// No refresh() call here: the caller (CashflowSheet's handleClearMonth)
+// already does a hard window.location.reload() immediately after this
+// resolves, which is what's actually reliable in this app. Calling
+// refresh() as well raced with that reload — the browser would start
+// tearing down the page for the reload while refresh()'s client-side
+// update was still in flight, surfacing as a brief error before the
+// reload took effect.
 export async function clearMonth(monthId: string) {
   const householdId = await getCurrentHouseholdId()
 
@@ -18,7 +26,6 @@ export async function clearMonth(monthId: string) {
   await prisma.creditCardStatement.deleteMany({ where: { householdId, monthId } })
 
   revalidatePath("/monthly-bills", "layout")
-  refresh()
 }
 
 export async function getRecurringBills() {

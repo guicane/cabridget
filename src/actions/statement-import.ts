@@ -6,7 +6,7 @@ import { parseStatementCsv, matchTransactions, type MatchedGroup, type Unmatched
 import { parseStatementPdf } from "@/lib/statement-pdf"
 import { ensureMonthsForYear } from "./months"
 import { MerchantMappingType } from "@prisma/client"
-import { revalidatePath, refresh } from "next/cache"
+import { revalidatePath } from "next/cache"
 
 export async function getMerchantMappings() {
   const householdId = await getCurrentHouseholdId()
@@ -70,12 +70,13 @@ export async function previewStatementImport(formData: FormData): Promise<Import
   return matchTransactions(result.transactions, mappings, monthIdentifier)
 }
 
-// Calls refresh() (next/cache) in addition to revalidatePath: this action
-// is invoked from a modal nested a few components deep, and on this
-// Next.js version revalidatePath alone didn't reliably make the
-// currently-mounted Monthly Cashflow sheet show the newly imported rows
-// without a manual reload. refresh() is the documented, explicit way to
-// force the client router to refresh from inside a Server Action.
+// No refresh() call here: the caller (ImportStatementModal's handleDone)
+// already does a real browser navigation/reload once the user dismisses
+// the "Imported N items" screen, which is what's actually reliable in
+// this app — revalidatePath alone doesn't update the mounted sheet, and
+// pairing this with refresh() as well raced against that reload (the
+// page starts tearing down for the reload while refresh()'s client-side
+// update is still in flight), surfacing as a brief error beforehand.
 export async function commitStatementImport(rows: MatchedGroup[]) {
   const householdId = await getCurrentHouseholdId()
 
@@ -116,5 +117,4 @@ export async function commitStatementImport(rows: MatchedGroup[]) {
   }
 
   revalidatePath("/monthly-bills", "layout")
-  refresh()
 }
