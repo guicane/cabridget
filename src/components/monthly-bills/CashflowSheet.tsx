@@ -391,51 +391,6 @@ export function CashflowSheet({
           </tbody>
           <tfoot className="bg-muted/30">
             <tr>
-              <td className="p-4 font-bold text-foreground border-r border-border/50 sticky left-0 z-20 bg-muted">Total Paid</td>
-              {months.map(month => {
-                const total = sumAmounts(bills.filter(b => b.monthId === month.id && b.isPaid).map(b => b.amount))
-                return (
-                  <td key={month.id} className="p-4 text-right font-bold text-primary border-r border-border/50">
-                    {total > 0 ? `${currency}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"}
-                  </td>
-                )
-              })}
-              <td className="p-4 text-right font-bold text-primary border-l border-border/50 sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
-                {(() => {
-                  const total = sumAmounts(bills.filter(b => b.isPaid).map(b => b.amount))
-                  return total > 0 ? `${currency}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
-                })()}
-              </td>
-            </tr>
-            <tr>
-              <td className="p-4 font-bold text-foreground border-r border-border/50 sticky left-0 z-20 bg-muted">Total Pending</td>
-              {months.map(month => {
-                const total = sumAmounts(bills.filter(b => b.monthId === month.id && !b.isPaid).map(b => b.amount))
-                return (
-                  <td key={month.id} className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50">
-                    {total > 0 ? `${currency}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"}
-                  </td>
-                )
-              })}
-              <td className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-l border-border/50 sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
-                {(() => {
-                  const total = sumAmounts(bills.filter(b => !b.isPaid).map(b => b.amount))
-                  return total > 0 ? `${currency}${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : "--"
-                })()}
-              </td>
-            </tr>
-            <tr>
-              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50 sticky left-0 z-20 bg-muted">Total Income</td>
-              {months.map(month => (
-                <td key={month.id} className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50">
-                  {formatOrDash(getIncomeMonthTotal(month.id))}
-                </td>
-              ))}
-              <td className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-l border-border/50 sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
-                {formatOrDash(totalIncomeGrand)}
-              </td>
-            </tr>
-            <tr>
               <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50 sticky left-0 z-20 bg-muted">Total Outgoing</td>
               {months.map(month => (
                 <td key={month.id} className="p-4 text-right font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50">
@@ -447,7 +402,7 @@ export function CashflowSheet({
               </td>
             </tr>
             <tr>
-              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50 sticky left-0 z-20 bg-muted">Outgoing - Income</td>
+              <td className="p-4 font-bold text-yellow-600 dark:text-yellow-400 border-r border-border/50 sticky left-0 z-20 bg-muted">Difference</td>
               {months.map(month => {
                 const net = sumAmounts([getOutgoingMonthTotal(month.id), -getIncomeMonthTotal(month.id)])
                 return (
