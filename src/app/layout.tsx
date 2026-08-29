@@ -52,7 +52,7 @@ export default async function RootLayout({
       <body className="min-h-[100dvh] selection:bg-primary/30 bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <SettingsProvider settings={settings}>
-            <div className="max-w-[1240px] mx-auto px-5 md:px-10 pt-8 pb-16">
+            <div className="w-full md:max-w-[80%] mx-auto px-5 md:px-10 pt-8 pb-16">
               <TopNav />
               <main>{children}</main>
             </div>
