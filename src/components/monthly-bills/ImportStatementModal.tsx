@@ -3,8 +3,8 @@
 import { useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import { X, Upload, Loader2, CheckCircle2, Circle } from "lucide-react"
-import { previewStatementImport, commitStatementImport, type ImportPreview } from "@/actions/statement-import"
+import { X, Upload, Loader2, CheckCircle2, Circle, Plus } from "lucide-react"
+import { previewStatementImport, commitStatementImport, addMerchantMapping, type ImportPreview, type UnmatchedRow } from "@/actions/statement-import"
 import { useSettings } from "@/components/providers/SettingsProvider"
 import { cn } from "@/lib/utils"
 
@@ -30,30 +30,72 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
   const [isImporting, setIsImporting] = useState(false)
   const [done, setDone] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileRef = useRef<File | null>(null)
+
+  // Inline "create a mapping" form state for the Not-matched section.
+  const [expandedUnmatched, setExpandedUnmatched] = useState<number | null>(null)
+  const [mappingType, setMappingType] = useState<"Bill" | "Income">("Bill")
+  const [mappingPattern, setMappingPattern] = useState("")
+  const [mappingTargetName, setMappingTargetName] = useState("")
+  const [mappingTargetCompany, setMappingTargetCompany] = useState("")
+  const [isSavingMapping, setIsSavingMapping] = useState(false)
 
   const years = Array.from({ length: 10 }, (_, i) => now.getFullYear() - 5 + i)
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setIsParsing(true)
-    setError(null)
-    setPreview(null)
-
+  const runPreview = async (file: File) => {
     const formData = new FormData()
     formData.set("file", file)
     formData.set("month", month)
     formData.set("year", String(year))
     const result = await previewStatementImport(formData)
-    setIsParsing(false)
 
     if ("error" in result) {
       setError(result.error)
-    } else {
-      setPreview(result)
-      setIncluded(new Set(result.matched.map((_, i) => i)))
+      return false
     }
+    setPreview(result)
+    setIncluded(new Set(result.matched.map((_, i) => i)))
+    return true
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    fileRef.current = file
+
+    setIsParsing(true)
+    setError(null)
+    setPreview(null)
+    await runPreview(file)
+    setIsParsing(false)
+  }
+
+  const openMappingForm = (i: number, row: UnmatchedRow) => {
+    setExpandedUnmatched(i)
+    setMappingType(row.direction === "in" ? "Income" : "Bill")
+    setMappingPattern(row.description)
+    setMappingTargetName("")
+    setMappingTargetCompany("")
+  }
+
+  // Creates the mapping, then re-runs the preview against the same file so
+  // the newly-matched transaction moves out of "Not matched" immediately —
+  // without this, the user would have to leave the modal, go add the
+  // mapping in Settings, and re-upload the file from scratch.
+  const handleSaveMapping = async () => {
+    if (!mappingPattern.trim() || !mappingTargetName.trim() || !fileRef.current) return
+    setIsSavingMapping(true)
+
+    const fd = new FormData()
+    fd.set("pattern", mappingPattern.trim())
+    fd.set("type", mappingType)
+    fd.set("targetName", mappingTargetName.trim())
+    if (mappingType === "Bill") fd.set("targetCompany", mappingTargetCompany.trim())
+    await addMerchantMapping(fd)
+    await runPreview(fileRef.current)
+
+    setIsSavingMapping(false)
+    setExpandedUnmatched(null)
   }
 
   const handleImport = async () => {
@@ -146,15 +188,76 @@ export function ImportStatementModal({ onClose }: { onClose: () => void }) {
                     Not matched — {preview.unmatched.length} merchant{preview.unmatched.length === 1 ? "" : "s"}
                   </h3>
                   <p className="text-xs text-muted-foreground mb-3">
-                    Add a mapping in <Link href="/settings" className="text-primary hover:underline">Settings</Link> and re-upload to include these.
+                    Create a mapping below, or add one in <Link href="/settings" className="text-primary hover:underline">Settings</Link> and re-upload to include these.
                   </p>
                   <div className="space-y-1 text-sm">
                     {preview.unmatched.map((row, i) => (
-                      <div key={i} className="flex items-center justify-between p-2 text-muted-foreground">
-                        <span className="truncate">
-                          <span className="opacity-60">{row.direction === "in" ? "money in ·" : "money out ·"}</span> {row.description} <span className="opacity-60">×{row.count}</span>
-                        </span>
-                        <span>{currency}{row.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      <div key={i}>
+                        <div className="flex items-center justify-between gap-2 p-2 text-muted-foreground">
+                          <span className="truncate flex-1">
+                            <span className="opacity-60">{row.direction === "in" ? "money in ·" : "money out ·"}</span> {row.description} <span className="opacity-60">×{row.count}</span>
+                          </span>
+                          <span className="shrink-0">{currency}{row.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          <button
+                            onClick={() => expandedUnmatched === i ? setExpandedUnmatched(null) : openMappingForm(i, row)}
+                            className="shrink-0 p-1 rounded hover:bg-muted/50 hover:text-primary transition-colors"
+                            title="Create a mapping for this"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {expandedUnmatched === i && (
+                          <div className="p-3 mb-1 bg-muted/30 rounded-lg space-y-2">
+                            <div className="flex gap-2">
+                              {(["Bill", "Income"] as const).map(t => (
+                                <button
+                                  key={t}
+                                  type="button"
+                                  onClick={() => setMappingType(t)}
+                                  className={cn(
+                                    "px-3 py-1 rounded-lg text-xs font-medium transition-colors",
+                                    mappingType === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
+                                  )}
+                                >
+                                  {t}
+                                </button>
+                              ))}
+                            </div>
+                            <input
+                              value={mappingPattern}
+                              onChange={e => setMappingPattern(e.target.value)}
+                              placeholder="Statement text to match"
+                              className="w-full px-3 py-1.5 bg-input border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                            />
+                            <input
+                              value={mappingTargetName}
+                              onChange={e => setMappingTargetName(e.target.value)}
+                              placeholder={mappingType === "Income" ? "Income source (e.g. Salary)" : "Bill name (e.g. Netflix)"}
+                              className="w-full px-3 py-1.5 bg-input border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                            />
+                            {mappingType === "Bill" && (
+                              <input
+                                value={mappingTargetCompany}
+                                onChange={e => setMappingTargetCompany(e.target.value)}
+                                placeholder="Company (optional)"
+                                className="w-full px-3 py-1.5 bg-input border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                              />
+                            )}
+                            <div className="flex items-center gap-3 pt-1">
+                              <button
+                                onClick={handleSaveMapping}
+                                disabled={isSavingMapping || !mappingPattern.trim() || !mappingTargetName.trim()}
+                                className="px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                              >
+                                {isSavingMapping && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                Save &amp; match
+                              </button>
+                              <button onClick={() => setExpandedUnmatched(null)} className="text-xs text-muted-foreground hover:text-foreground">
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
