@@ -111,7 +111,7 @@ export function SnapshotGrid({ accounts, months, creditCards = [], onSaved }: { 
   return (
     <div className="bg-card rounded-[18px] border border-border overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left border-separate border-spacing-0">
           <thead>
             <tr className="bg-muted">
               <th className="p-4 font-semibold text-foreground w-64 border-b border-border sticky left-0 z-20 bg-muted-solid">Investment Account</th>
