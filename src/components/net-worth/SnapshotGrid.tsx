@@ -150,23 +150,25 @@ export function SnapshotGrid({ accounts, months, creditCards = [], onSaved }: { 
                 {/* Category Accounts */}
                 {categoryAccounts.map(account => (
                   <tr key={account.id} className="border-b border-border hover:bg-muted/50 transition-colors group">
-                    <td className="p-4 flex items-center justify-between pl-8 sticky left-0 z-10 bg-card shadow-[4px_0_12px_rgba(0,0,0,0.02)]">
-                      <span className={account.active ? "font-medium text-foreground" : "font-medium text-muted-foreground"}>{account.name}</span>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => toggleInvestmentAccountActive(account.id, !account.active)}
-                          className={account.active ? "text-primary hover:text-primary/80 p-1" : "text-muted-foreground hover:text-foreground p-1"}
-                          title={account.active ? "Active — click to archive" : "Archived — click to reactivate"}
-                        >
-                          {account.active ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
-                        </button>
-                        <button
-                          onClick={() => deleteInvestmentAccount(account.id)}
-                          className="text-muted-foreground hover:text-negative p-1"
-                          title="Delete Account"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                    <td className="p-4 pl-8 sticky left-0 z-10 bg-card shadow-[4px_0_12px_rgba(0,0,0,0.02)]">
+                      <div className="flex items-center justify-between">
+                        <span className={account.active ? "font-medium text-foreground" : "font-medium text-muted-foreground"}>{account.name}</span>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => toggleInvestmentAccountActive(account.id, !account.active)}
+                            className={account.active ? "text-primary hover:text-primary/80 p-1" : "text-muted-foreground hover:text-foreground p-1"}
+                            title={account.active ? "Active — click to archive" : "Archived — click to reactivate"}
+                          >
+                            {account.active ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={() => deleteInvestmentAccount(account.id)}
+                            className="text-muted-foreground hover:text-negative p-1"
+                            title="Delete Account"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </td>
                     {months.map(month => {
