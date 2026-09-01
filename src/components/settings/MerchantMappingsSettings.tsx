@@ -32,28 +32,34 @@ export function MerchantMappingsSettings({ initialMappings }: { initialMappings:
         Map text that appears on a bank statement to a bill or income source, so "Import Statement" on the Monthly Cashflow page knows what each transaction is. Bill mappings only match outgoing money; Income mappings only match incoming money. These apply to every statement you import.
       </p>
 
-      <div className="space-y-1 mb-4">
-        {mappings.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No mappings yet.</p>
-        ) : (
-          mappings.map(m => (
-            <div key={m.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 group">
-              <div className="text-sm flex items-center gap-2">
-                <span className={cn(
-                  "text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded",
-                  m.type === "Income" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                )}>
-                  {m.type}
-                </span>
-                <span className="text-foreground font-medium">{m.pattern}</span>
-                <span className="text-muted-foreground">→ {m.targetName}{m.targetCompany ? ` (${m.targetCompany})` : ""}</span>
+      <div className="space-y-4 mb-4">
+        {(["Bill", "Income"] as const).map(sectionType => {
+          const sectionMappings = mappings.filter(m => m.type === sectionType)
+          return (
+            <div key={sectionType}>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-1">
+                {sectionType === "Income" ? "Income" : "Bills"}
+              </p>
+              <div className="space-y-1">
+                {sectionMappings.length === 0 ? (
+                  <p className="text-muted-foreground text-sm px-2">No mappings yet.</p>
+                ) : (
+                  sectionMappings.map(m => (
+                    <div key={m.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 group">
+                      <div className="text-sm flex items-center gap-2">
+                        <span className="text-foreground font-medium">{m.pattern}</span>
+                        <span className="text-muted-foreground">→ {m.targetName}{m.targetCompany ? ` (${m.targetCompany})` : ""}</span>
+                      </div>
+                      <button onClick={() => handleDeleteMapping(m.id)} className="text-muted-foreground hover:text-negative opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
-              <button onClick={() => handleDeleteMapping(m.id)} className="text-muted-foreground hover:text-negative opacity-0 group-hover:opacity-100 transition-opacity">
-                <Trash2 className="w-4 h-4" />
-              </button>
             </div>
-          ))
-        )}
+          )
+        })}
       </div>
 
       <form ref={formRef} action={handleAddMapping} className="space-y-2">
