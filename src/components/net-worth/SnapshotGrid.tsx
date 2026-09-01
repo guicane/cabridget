@@ -198,11 +198,11 @@ export function SnapshotGrid({ accounts, months, creditCards = [], onSaved }: { 
 
                 {/* Category Subtotal */}
                 <tr className="border-b-2 border-border bg-transparent">
-                  <td className="p-4 font-medium text-muted-foreground pl-8 text-sm sticky left-0 z-10 bg-card">
+                  <td className="p-4 font-bold text-foreground pl-8 text-base sticky left-0 z-10 bg-card">
                     Total {formatCategoryName(category)}
                   </td>
                   {months.map(month => (
-                    <td key={month.id} className="p-4 text-right font-medium text-muted-foreground text-sm">
+                    <td key={month.id} className="p-4 text-right font-bold text-foreground text-base">
                       {currency}{getCategoryTotal(category, month.id).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                   ))}
