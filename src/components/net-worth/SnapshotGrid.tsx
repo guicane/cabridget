@@ -114,7 +114,7 @@ export function SnapshotGrid({ accounts, months, creditCards = [], onSaved }: { 
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-muted">
-              <th className="p-4 font-semibold text-foreground w-64 border-b border-border">Investment Account</th>
+              <th className="p-4 font-semibold text-foreground w-64 border-b border-border sticky left-0 z-20 bg-muted-solid">Investment Account</th>
               {months.map(month => {
                 const complete = isMonthComplete(month.id)
                 return (
@@ -150,7 +150,7 @@ export function SnapshotGrid({ accounts, months, creditCards = [], onSaved }: { 
                 {/* Category Accounts */}
                 {categoryAccounts.map(account => (
                   <tr key={account.id} className="border-b border-border hover:bg-muted/50 transition-colors group">
-                    <td className="p-4 flex items-center justify-between pl-8">
+                    <td className="p-4 flex items-center justify-between pl-8 sticky left-0 z-10 bg-card shadow-[4px_0_12px_rgba(0,0,0,0.02)]">
                       <span className={account.active ? "font-medium text-foreground" : "font-medium text-muted-foreground"}>{account.name}</span>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
@@ -196,7 +196,7 @@ export function SnapshotGrid({ accounts, months, creditCards = [], onSaved }: { 
 
                 {/* Category Subtotal */}
                 <tr className="border-b-2 border-border bg-transparent">
-                  <td className="p-4 font-medium text-muted-foreground pl-8 text-sm">
+                  <td className="p-4 font-medium text-muted-foreground pl-8 text-sm sticky left-0 z-10 bg-card">
                     Total {formatCategoryName(category)}
                   </td>
                   {months.map(month => (
@@ -211,7 +211,7 @@ export function SnapshotGrid({ accounts, months, creditCards = [], onSaved }: { 
           
           <tfoot className="bg-primary/10">
             <tr>
-              <td className="p-4 font-semibold text-primary text-lg">Total Net Worth</td>
+              <td className="p-4 font-semibold text-primary text-lg sticky left-0 z-10 bg-[color-mix(in_srgb,var(--primary)_10%,var(--card))]">Total Net Worth</td>
               {months.map(month => (
                 <td key={month.id} className="p-4 text-right font-bold text-primary text-lg">
                   {currency}{getMonthTotal(month.id).toLocaleString(undefined, { minimumFractionDigits: 2 })}
